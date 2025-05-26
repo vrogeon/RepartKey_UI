@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Update Text Block</h1>
+
+<form action="/update/{{ text_block.id }}" method="POST">
+    <div class="form-group">
+        <label for="title">Title</label>
+        <input type="text" name="title" id="title" class="form-control" value="{{ text_block.title }}" required>
+    </div>
+    <div class="form-group">
+        <label for="content">Content</label>
+        <textarea name="content" id="content" class="form-control" required>{{ text_block.content }}</textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Update</button>
+    <a href="/" class="btn">Cancel</a>
+</form>
+{% endblock %}

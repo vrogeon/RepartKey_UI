@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Mise à jour du producteur</h1>
+
+<form action="/update_producer/{{ producer_block.id }}" method="POST">
+    <div class="form-group">
+        <label for="prod_name">Nom du producteur</label>
+        <input type="text" name="prod_name" id="prod_name" class="form-control" value="{{ producer_block.prod_name }}" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Update</button>
+    <a href="/" class="btn">Cancel</a>
+</form>
+{% endblock %}

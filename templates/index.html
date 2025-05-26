@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!--<h1>Text Blocks</h1>-->
+
+<!--<form action="/add" method="POST">-->
+<!--    <div class="form-group">-->
+<!--        <label for="title">Title</label>-->
+<!--        <input type="text" name="title" id="title" class="form-control" required>-->
+<!--    </div>-->
+<!--    <div class="form-group">-->
+<!--        <label for="content">Content</label>-->
+<!--        <textarea name="content" id="content" class="form-control" required></textarea>-->
+<!--    </div>-->
+<!--    <button type="submit" class="btn btn-primary">Add Text Block</button>-->
+<!--</form>-->
+
+
+<!--<h2>Your Text Blocks</h2>-->
+<!--{% if text_blocks|length > 0 %}-->
+<!--<table>-->
+<!--    <thead>-->
+<!--        <tr>-->
+<!--            <th>Title</th>-->
+<!--            <th>Content</th>-->
+<!--            <th>Date Created</th>-->
+<!--            <th>Actions</th>-->
+<!--        </tr>-->
+<!--    </thead>-->
+<!--    <tbody>-->
+<!--        {% for text_block in text_blocks %}-->
+<!--        <tr>-->
+<!--            <td>{{ text_block.title }}</td>-->
+<!--            <td>-->
+<!--                <div class="text-content">-->
+<!--                    {{ text_block.content }}-->
+<!--                </div>-->
+<!--            </td>-->
+<!--            <td>{{ text_block.date_created.strftime('%Y-%m-%d %H:%M:%S') }}</td>-->
+<!--            <td>-->
+<!--                <a href="/update/{{ text_block.id }}" class="btn">Edit</a>-->
+<!--                <a href="/delete/{{ text_block.id }}" class="btn btn-danger">Delete</a>-->
+<!--            </td>-->
+<!--        </tr>-->
+<!--        {% endfor %}-->
+<!--    </tbody>-->
+<!--</table>-->
+<!--{% else %}-->
+<!--<p>No text blocks found. Add one above!</p>-->
+<!--{% endif %}-->
+
+
+<td>
+    <h2>Type de clés de répartition:</h2>
+    <select name="cles" id="cle">
+        <option value="">--Choisir le type de clés de répartition--</option>
+        <option value="static">Statique</option>
+        <option value="dynamic">Dynamique</option>
+        <option value="progressive">Progressive</option>
+    </select>
+<!--        <tr>-->
+<!--            <td>Type de clés</td>-->
+<!--        </tr>-->
+<!--        <tr>-->
+<!--            <td>Statique</td>-->
+<!--        </tr>-->
+<!--        <tr>-->
+<!--            <td>Dynamique</td>-->
+<!--        </tr>-->
+<!--        <tr>-->
+<!--            <td>Progressive</td>-->
+<!--        </tr>-->
+<!--    </tbody>-->
+</td>
+
+<h2>Ajout de consommateur</h2>
+<form action="/add_consumer" method="POST">
+    <div class="form-group">
+        <input type="text" name="cons_name" id="cons_name" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Ajouter consommateur</button>
+</form>
+
+<h2>Ajout de producteur</h2>
+<form action="/add_producer" method="POST">
+    <div class="form-group">
+        <input type="text" name="prod_name" id="prod_name" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Ajouter producteur</button>
+</form>
+
+<!--{% if producer_blocks|length > 0 %}-->
+<!--<table>-->
+<!--    <tbody>-->
+<!--        <tr>-->
+<!--            <td></td>-->
+<!--            {% for producer_block in producer_blocks %}-->
+<!--            <td>{{ producer_block.title }}</td>-->
+<!--&lt;!&ndash;            <td>&ndash;&gt;-->
+<!--&lt;!&ndash;                <div class="text-content">&ndash;&gt;-->
+<!--&lt;!&ndash;                    {{ producer_block.content }}&ndash;&gt;-->
+<!--&lt;!&ndash;                </div>&ndash;&gt;-->
+<!--&lt;!&ndash;            </td>&ndash;&gt;-->
+<!--&lt;!&ndash;            <td>&ndash;&gt;-->
+<!--&lt;!&ndash;                <a href="/update_producer/{{ producer_block.id }}" class="btn">Edit</a>&ndash;&gt;-->
+<!--&lt;!&ndash;                <a href="/delete_producer/{{ producer_block.id }}" class="btn btn-danger">Delete</a>&ndash;&gt;-->
+<!--&lt;!&ndash;            </td>&ndash;&gt;-->
+<!--            {% endfor %}-->
+<!--        </tr>-->
+<!--    </tbody>-->
+<!--</table>-->
+<!--{% endif %}-->
+
+<h2>Tableau de répartition</h2>
+{% if consumer_blocks|length > 0 %}
+<table>
+    <tbody>
+        <tr>
+            <td></td>
+            {% for producer_block in producer_blocks %}
+            <td>{{ producer_block.title }}</td>
+            {% endfor %}
+        </tr>
+
+        {% for consumer_block in consumer_blocks %}
+        <tr>
+            <td>{{ consumer_block.title }}</td>
+            {% for producer_block in producer_blocks %}
+            <td>
+                Priorité:
+                <div title="prio" class="text-content" contenteditable="true">
+                    {{ consumer_block.priority }}
+                </div>
+                Ratio:
+                <div class="text-content" contenteditable="true">
+                    {{ consumer_block.ratio }}
+                </div>
+<!--                <div>-->
+<!--                    <strong >Priorité:</strong>-->
+<!--                    <span class="text-content" contenteditable="true">-->
+<!--                            {{ consumer_block.priority }}-->
+<!--                    </span>-->
+<!--                </div>-->
+<!--                <div>-->
+<!--                     <strong>Ratio:</strong>-->
+<!--                    <span class="text-content" contenteditable="true">-->
+<!--                            {{ consumer_block.ratio }}-->
+<!--                    </span>-->
+<!--                </div>-->
+            </td>
+            {% endfor %}
+            <td>
+                <a href="/update_consumer/{{ consumer_block.id }}" class="btn">Edit</a>
+                <a href="/delete_consumer/{{ consumer_block.id }}" class="btn btn-danger">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% endblock %}
