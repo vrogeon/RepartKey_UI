@@ -13,7 +13,7 @@
 </td>
 
 <h2>Ajout de consommateur</h2>
-<form action="/add_consumer" method="POST">
+<form action="{{ url_for('add_consumer_block') }}" method="POST">
     <div class="form-group">
         <input type="text" name="cons_name" id="cons_name" class="form-control" required>
     </div>
@@ -21,7 +21,7 @@
 </form>
 
 <h2>Ajout de producteur</h2>
-<form action="/add_producer" method="POST">
+<form action="{{ url_for('add_producer_block') }}" method="POST">
     <div class="form-group">
         <input type="text" name="prod_name" id="prod_name" class="form-control" required>
     </div>
@@ -35,13 +35,28 @@
         <tr>
             <td></td>
             {% for producer_block in producer_blocks %}
-            <td>{{ producer_block.title }}</td>
+            <td>{{ producer_block.prod_name }}
+                <form method="POST" action="{{ url_for('upload_producer_file') }}" enctype="multipart/form-data">
+                    <input type="file" name="file" id="file_producer" required>
+                    <button type="submit">Charger</button>
+                </form>
+                <a href="/update_producer/{{ producer_block.id }}" class="btn">Editer</a>
+                <a href="/delete_producer/{{ producer_block.id }}" class="btn btn-danger">Supprimer</a>
+            </td>
             {% endfor %}
         </tr>
 
         {% for consumer_block in consumer_blocks %}
         <tr>
-            <td>{{ consumer_block.title }}</td>
+            <td>
+                {{ consumer_block.cons_name }}
+                <form method="POST" action="{{ url_for('upload_consumer_file') }}" enctype="multipart/form-data">
+                    <input type="file" name="file" id="file" required>
+                    <button type="submit">Charger</button>
+                </form>
+                <a href="/update_consumer/{{ consumer_block.id }}" class="btn">Editer</a>
+                <a href="/delete_consumer/{{ consumer_block.id }}" class="btn btn-danger">Supprimer</a>
+            </td>
             {% for producer_block in producer_blocks %}
             <td>
                 Priorité:
@@ -54,10 +69,6 @@
                 </div>
             </td>
             {% endfor %}
-            <td>
-                <a href="/update_consumer/{{ consumer_block.id }}" class="btn">Edit</a>
-                <a href="/delete_consumer/{{ consumer_block.id }}" class="btn btn-danger">Delete</a>
-            </td>
         </tr>
         {% endfor %}
     </tbody>

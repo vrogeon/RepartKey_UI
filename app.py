@@ -1,12 +1,15 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.utils import secure_filename
 from datetime import datetime
+import os
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///textblocks.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'csv'}
 
 class TextBlock(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -19,7 +22,7 @@ class TextBlock(db.Model):
 
 class ConsumerBlock(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100), nullable=False)
+    cons_name = db.Column(db.String(100), nullable=False)
     date_created = db.Column(db.DateTime, default=datetime.utcnow)
     priority = 0
     ratio = 0
@@ -29,7 +32,7 @@ class ConsumerBlock(db.Model):
 
 class ProducerBlock(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100), nullable=False)
+    prod_name = db.Column(db.String(100), nullable=False)
     date_created = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
@@ -44,8 +47,8 @@ with app.app_context():
 @app.route('/')
 def index():
     text_blocks = TextBlock.query.order_by(TextBlock.date_created.desc()).all()
-    consumer_blocks = ConsumerBlock.query.order_by(ConsumerBlock.date_created.asc()).all()
-    producer_blocks = ProducerBlock.query.order_by(ProducerBlock.date_created.asc()).all()
+    consumer_blocks = ConsumerBlock.query.order_by(ConsumerBlock.id).all()
+    producer_blocks = ProducerBlock.query.order_by(ProducerBlock.id).all()
     return render_template('index.html', text_blocks=text_blocks, consumer_blocks=consumer_blocks, producer_blocks=producer_blocks)
 
 
@@ -67,7 +70,7 @@ def add_text_block():
 def add_consumer_block():
     cons_name = request.form['cons_name']
 
-    new_consumer_block = ConsumerBlock(title=cons_name)
+    new_consumer_block = ConsumerBlock(cons_name=cons_name)
 
     try:
         db.session.add(new_consumer_block)
@@ -80,7 +83,7 @@ def add_consumer_block():
 def add_producer_block():
     prod_name = request.form['prod_name']
 
-    new_producer_block = ProducerBlock(title=prod_name)
+    new_producer_block = ProducerBlock(prod_name=prod_name)
 
     try:
         db.session.add(new_producer_block)
@@ -158,7 +161,7 @@ def update_producer(id):
     producer_block = ProducerBlock.query.get_or_404(id)
 
     if request.method == 'POST':
-        producer_block.title = request.form['prod_name']
+        producer_block.prod_name = request.form['prod_name']
 
         try:
             db.session.commit()
@@ -167,6 +170,98 @@ def update_producer(id):
             return 'There was an issue updating your producer block'
     else:
         return render_template('update_producer.html', producer_block=producer_block)
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/upload_consumer_file', methods=['POST'])
+def upload_consumer_file():
+    # Check if the post request has the file part
+    if 'file' not in request.files:
+        flash('No file selected')
+        return redirect(request.url)
+
+    file = request.files['file']
+
+    # If user does not select file, browser submits empty part without filename
+    if file.filename == '':
+        flash('No file selected')
+        return redirect(request.url)
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+        # Process the file here (read contents, parse, etc.)
+        file_info = process_uploaded_file(filepath)
+
+        flash(f'File {filename} uploaded successfully!')
+        return render_template('upload.html', file_info=file_info, filename=filename)
+    else:
+        flash('Invalid file type. Allowed types: txt, pdf, png, jpg, jpeg, gif, csv')
+        return redirect(request.url)
+
+@app.route('/upload_producer_file', methods=['POST'])
+def upload_producer_file():
+    # Check if the post request has the file part
+    if 'file' not in request.files:
+        flash('No file selected')
+        return redirect(request.url)
+
+    file = request.files['file']
+
+    # If user does not select file, browser submits empty part without filename
+    if file.filename == '':
+        flash('No file selected')
+        return redirect(request.url)
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+        # Process the file here (read contents, parse, etc.)
+        file_info = process_uploaded_file(filepath)
+
+        flash(f'File {filename} uploaded successfully!')
+        return render_template('upload.html', file_info=file_info, filename=filename)
+    else:
+        flash('Invalid file type. Allowed types: txt, pdf, png, jpg, jpeg, gif, csv')
+        return redirect(request.url)
+
+
+def process_uploaded_file(filepath):
+    """Process the uploaded file and return information about it"""
+    file_info = {
+        'size': os.path.getsize(filepath),
+        'name': os.path.basename(filepath)
+    }
+
+    # Example: Read text file contents
+    if filepath.endswith('.txt'):
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                file_info['content'] = f.read()[:500]  # First 500 characters
+        except Exception as e:
+            file_info['error'] = str(e)
+
+    # Example: Process CSV file
+    elif filepath.endswith('.csv'):
+        try:
+            import pandas as pd
+            df = pd.read_csv(filepath)
+            file_info['rows'] = len(df)
+            file_info['columns'] = list(df.columns)
+        except Exception as e:
+            file_info['error'] = str(e)
+
+    return file_info
+
+
+
+
 
 if __name__ == '__main__':
     app.run(debug=False)
