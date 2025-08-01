@@ -1,15 +1,32 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
+
+import io
+import csv
+
+import Consumer
+import Producer
+import Repartition
+import Graph
+
+import plotly.graph_objects as go
+import plotly.utils
+import json
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///textblocks.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'csv'}
+app.config['UPLOAD_FOLDER'] = 'C:\\Pro\\Git\\RepartKey_UI\\Courbes\\'
+EXPORT_FOLDER = 'C:\\Pro\\Git\\RepartKey_UI\\Export\\'
+ALLOWED_EXTENSIONS = {'csv'}
+
+cons_list = []
+prod_list = []
 
 class TextBlock(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -177,6 +194,11 @@ def allowed_file(filename):
 
 @app.route('/upload_consumer_file', methods=['POST'])
 def upload_consumer_file():
+    cons_name = request.form.get('cons_name')
+    id = request.form.get('id')
+    priority = request.form.get('priority')
+    ratio = request.form.get('ratio')
+
     # Check if the post request has the file part
     if 'file' not in request.files:
         flash('No file selected')
@@ -194,17 +216,35 @@ def upload_consumer_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        # Process the file here (read contents, parse, etc.)
-        file_info = process_uploaded_file(filepath)
+        # Lire le contenu du fichier en mémoire
+        # stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
 
-        flash(f'File {filename} uploaded successfully!')
-        return render_template('upload.html', file_info=file_info, filename=filename)
+        consumer = Consumer.Consumer(cons_name, cons_name, [0], [50], filepath)
+        # consumer.read_stream(stream)
+        cons_list.append(consumer)
+
+        # csv_input = csv.reader(stream, delimiter=';')
+
+        # # Optionnel : ignorer la première ligne si elle contient des en-têtes
+        # headers = next(csv_input, None)  # Récupère les en-têtes ou None si fichier vide
+        #
+        # # Traiter chaque ligne du CSV
+        # rows_data = []
+        # for row_number, row in enumerate(csv_input, start=2):  # start=2 car ligne 1 = headers
+        #     if row:  # Ignorer les lignes vides
+        #         print(f"Ligne {row_number}: {row}")
+        #         # Traiter la ligne selon vos besoins
+        #         rows_data.append(row)
+
+        return redirect('/')
     else:
-        flash('Invalid file type. Allowed types: txt, pdf, png, jpg, jpeg, gif, csv')
-        return redirect(request.url)
+        #flash('Invalid file type. Allowed types:')
+        return redirect('/')
 
 @app.route('/upload_producer_file', methods=['POST'])
 def upload_producer_file():
+    prod_name = request.form.get('prod_name')
+
     # Check if the post request has the file part
     if 'file' not in request.files:
         flash('No file selected')
@@ -222,46 +262,127 @@ def upload_producer_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        # Process the file here (read contents, parse, etc.)
-        file_info = process_uploaded_file(filepath)
+        # Lire le contenu du fichier en mémoire
+        # stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
 
-        flash(f'File {filename} uploaded successfully!')
-        return render_template('upload.html', file_info=file_info, filename=filename)
+        producer = Producer.Producer(prod_name, 1234567901000, filepath)
+        # producer.read_stream(stream)
+        prod_list.append(producer)
+
+        # csv_input = csv.reader(stream, delimiter=';')
+        #
+        # filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        # file.save(filepath)
+        #
+        # # Process the file here (read contents, parse, etc.)
+        # file_info = process_uploaded_file(filepath)
+        #
+        # flash(f'File {filename} uploaded successfully!')
+        # return render_template('upload.html', file_info=file_info, filename=filename)
+
+        return redirect('/')
     else:
-        flash('Invalid file type. Allowed types: txt, pdf, png, jpg, jpeg, gif, csv')
+        flash('Invalid file type. Allowed types:'+ALLOWED_EXTENSIONS.join(','))
         return redirect(request.url)
 
+@app.route('/compute_repartition_keys', methods=['POST'])
+def compute_repartition_keys():
 
-def process_uploaded_file(filepath):
-    """Process the uploaded file and return information about it"""
-    file_info = {
-        'size': os.path.getsize(filepath),
-        'name': os.path.basename(filepath)
+    # Get all information for test
+    prod_list.append(
+        Producer.Producer('Prod1', 1234567901000,
+                          app.config['UPLOAD_FOLDER'] + 'Simu_Prod_Enerev_100.csv'))
+
+    cons_list.append(Consumer.Consumer('Parking_Harmony1','Parking_Harmony1',[ 0 ], [ 50 ],
+                                       app.config['UPLOAD_FOLDER'] + 'Parking_Harmony1_Conso_202312_202412_V1.csv'))
+    cons_list.append(Consumer.Consumer('Parking_Harmony2','Parking_Harmony2',[ 0 ], [ 50 ],
+                                       app.config['UPLOAD_FOLDER'] + 'Parking_Harmony2_Conso_202312_202412_V5.csv'))
+    cons_list.append(Consumer.Consumer('Particuliers', 'Particuliers', [1], [100],
+                                       app.config['UPLOAD_FOLDER'] + 'Simu_50_particuliers.csv'))
+    cons_list.append(Consumer.Consumer('PtiteEchoppe', 'PtiteEchoppe', [2], [50],
+                                       app.config['UPLOAD_FOLDER'] + 'Simu_PtiteEchoppe.csv'))
+    cons_list.append(Consumer.Consumer('Azimut', 'Azimut', [2], [50],
+                                       app.config['UPLOAD_FOLDER'] + 'Simu_Azimut.csv'))
+
+    # End test
+
+    rep = Repartition.Repartition()
+    rep.build_rep(prod_list, cons_list, Repartition.Strategy.DYNAMIC_BY_DEFAULT)
+    rep.write_repartition_key(prod_list, cons_list, EXPORT_FOLDER, True)
+
+    rep.generate_statistics(prod_list, cons_list, EXPORT_FOLDER)
+    rep.generate_monthly_report(prod_list, cons_list, EXPORT_FOLDER, add_cons_mois=False)
+
+    auto_consumption_rate = rep.get_auto_consumption_rate(0)
+    print("Taux d'autoconsommation : ", auto_consumption_rate, "%")
+
+    index_cons = 0
+    auto_production_rate_global = 0
+    for cons in cons_list:
+        auto_production_rate = rep.get_auto_production_rate(index_cons)
+        auto_production_rate_global += auto_production_rate
+        # print("Taux d'autoproduction de",cons.name,": ", auto_production_rate, "%")
+        index_cons += 1
+    auto_production_rate_global = rep.get_global_auto_production_rate(cons_list)
+    print("Taux d'autoproduction global : ", auto_production_rate_global, "%")
+
+    coverage_rate = rep.get_coverage_rate(0, cons_list)
+    print("Taux de couverture : ", coverage_rate, "%")
+
+    # Graph.generate_graph(EXPORT_FOLDER + '1234567901000_statistics.csv', ';', group=False, resolution='month')
+    # Graph.generate_graph(EXPORT_FOLDER + '1234567901000_statistics.csv', ';', group=False, resolution='day')
+
+    return redirect('/')
+
+
+@app.route('/data')
+def chart_data():
+    compute_repartition_keys()
+
+    # Créer votre graphique
+    fig = go.Figure()
+
+    fig = Graph.generate_graph(EXPORT_FOLDER + '1234567901000_statistics.csv',
+                               ';',
+                               group=False,
+                               resolution='day')
+
+    fig.update_layout(
+        autosize=True,
+        # Forcer la configuration responsive
+        margin=dict(autoexpand=True)
+    )
+
+    # Version ultra-simple
+    traces = []
+    for trace in fig.data:
+        traces.append({
+            'type': 'scatter',
+            'mode': 'lines',
+            'fill': 'tonexty' if len(traces) > 0 else 'tozeroy',
+            'stackgroup': 'one',
+            'name': trace.name,
+            'x': [str(x) for x in trace.x],
+            'y': [float(str(y)) for y in trace.y]  # Double conversion pour être sûr
+        })
+
+    result = {
+        'data': traces,
+        'layout': {
+            'title': 'Profil d\'autoconsommation par consommateur',
+            'xaxis': {'title': 'Date'},
+            'yaxis': {'title': 'Autoconsommation (kWh)'}
+        }
     }
 
-    # Example: Read text file contents
-    if filepath.endswith('.txt'):
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                file_info['content'] = f.read()[:500]  # First 500 characters
-        except Exception as e:
-            file_info['error'] = str(e)
+    return jsonify(result)
 
-    # Example: Process CSV file
-    elif filepath.endswith('.csv'):
-        try:
-            import pandas as pd
-            df = pd.read_csv(filepath)
-            file_info['rows'] = len(df)
-            file_info['columns'] = list(df.columns)
-        except Exception as e:
-            file_info['error'] = str(e)
-
-    return file_info
-
-
-
-
+    # Méthode 1: Sérialisation standard
+    # try:
+    #     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+    #     return graphJSON
+    # except Exception as e:
+    #     print(f"Erreur sérialisation standard: {e}")
 
 if __name__ == '__main__':
     app.run(debug=False)

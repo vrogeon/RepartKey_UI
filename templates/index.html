@@ -6,9 +6,9 @@
     <h2>Type de clés de répartition:</h2>
     <select name="cles" id="cle">
         <option value="">--Choisir le type de clés de répartition--</option>
-        <option value="static">Statique</option>
+        <option value="static">Dynamique par défaut</option>
         <option value="dynamic">Dynamique</option>
-        <option value="progressive">Progressive</option>
+        <option value="progressive">Statique</option>
     </select>
 </td>
 
@@ -28,6 +28,11 @@
     <button type="submit" class="btn btn-primary">Ajouter producteur</button>
 </form>
 
+<h2>------------------------------------------</h2>
+<form action="{{ url_for('compute_repartition_keys') }}" method="POST">
+    <button type="submit" class="btn btn-primary">Caluler les clés de répartitions</button>
+</form>
+
 <h2>Tableau de répartition</h2>
 {% if consumer_blocks|length > 0 %}
 <table>
@@ -37,7 +42,8 @@
             {% for producer_block in producer_blocks %}
             <td>{{ producer_block.prod_name }}
                 <form method="POST" action="{{ url_for('upload_producer_file') }}" enctype="multipart/form-data">
-                    <input type="file" name="file" id="file_producer" required>
+                    <input type="hidden" name="prod_name" value="{{ producer_block.prod_name }}">
+                    <input type="hidden" name="id" value="{{ producer_block.id }}">                    <input type="file" name="file" id="file_producer" required>
                     <button type="submit">Charger</button>
                 </form>
                 <a href="/update_producer/{{ producer_block.id }}" class="btn">Editer</a>
@@ -51,6 +57,10 @@
             <td>
                 {{ consumer_block.cons_name }}
                 <form method="POST" action="{{ url_for('upload_consumer_file') }}" enctype="multipart/form-data">
+                    <input type="hidden" name="cons_name" value="{{ consumer_block.cons_name }}">
+                    <input type="hidden" name="id" value="{{ consumer_block.id }}">
+                    <input type="hidden" name="priority" value="{{ consumer_block.priority }}">
+                    <input type="hidden" name="ratio" value="{{ consumer_block.ratio }}">
                     <input type="file" name="file" id="file" required>
                     <button type="submit">Charger</button>
                 </form>
@@ -74,5 +84,20 @@
     </tbody>
 </table>
 {% endif %}
+
+<head>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <div id="chart" style="width:100%;height:500px;"></div>
+
+    <script>
+        fetch('/data')
+            .then(response => response.json())
+            .then(fig => {
+                Plotly.newPlot('chart', fig.data, fig.layout);
+            });
+    </script>
+</body>
 
 {% endblock %}
