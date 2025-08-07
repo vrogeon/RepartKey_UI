@@ -25,6 +25,10 @@ app.config['UPLOAD_FOLDER'] = 'C:\\Pro\\Git\\RepartKey_UI\\Courbes\\'
 EXPORT_FOLDER = 'C:\\Pro\\Git\\RepartKey_UI\\Export\\'
 ALLOWED_EXTENSIONS = {'csv'}
 
+auto_consumption_rate = 0
+auto_production_rate_global = 0
+coverage_rate = 0
+
 cons_list = []
 prod_list = []
 
@@ -287,6 +291,9 @@ def upload_producer_file():
 
 @app.route('/compute_repartition_keys', methods=['POST'])
 def compute_repartition_keys():
+    global auto_consumption_rate
+    global auto_production_rate_global
+    global coverage_rate
 
     # Get all information for test
     prod_list.append(
@@ -337,6 +344,8 @@ def compute_repartition_keys():
 
 @app.route('/data')
 def chart_data():
+    res = "jour"
+
     compute_repartition_keys()
 
     # Créer votre graphique
@@ -345,7 +354,7 @@ def chart_data():
     fig = Graph.generate_graph(EXPORT_FOLDER + '1234567901000_statistics.csv',
                                ';',
                                group=False,
-                               resolution='day')
+                               resolution=res)
 
     fig.update_layout(
         autosize=True,
@@ -369,9 +378,21 @@ def chart_data():
     result = {
         'data': traces,
         'layout': {
-            'title': 'Profil d\'autoconsommation par consommateur',
+            'title': 'Profil d\'autoconsommation par consommateur cumulé par ' + res,
             'xaxis': {'title': 'Date'},
-            'yaxis': {'title': 'Autoconsommation (kWh)'}
+            'yaxis': {'title': 'Autoconsommation (kWh)'},
+            'legend': {
+                'orientation': 'h',  # Orientation horizontale
+                'x': 0.5,            # Centré horizontalement
+                'xanchor': 'center', # Ancrage au centre
+                'y': -0.2,           # Position en bas du graphique
+                'yanchor': 'top'     # Ancrage par le haut de la légende
+            }
+        },
+        'indicators': {
+            'auto_consumption_rate': auto_consumption_rate,
+            'auto_production_rate_global': auto_production_rate_global,
+            'coverage_rate': coverage_rate
         }
     }
 

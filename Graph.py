@@ -64,11 +64,11 @@ def generate_graph(file,
     area['month'] = area['Horodate'].dt.month
 
     # Create pivot table to summarize consumption
-    if resolution == 'month':
+    if resolution == 'mois':
         piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'month'], aggfunc='sum').reset_index()
         piv['month'] = piv['month'].astype(str)
         piv['date'] = pd.to_datetime(piv['month'], format='%m')
-    elif resolution == 'day':
+    elif resolution == 'jour':
         piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'month', 'day'], aggfunc='sum').reset_index()
         piv['month'], piv['day'] = piv['month'].astype(str), piv['day'].astype(str)
         piv['date'] = pd.to_datetime(piv['month'] + '.' + piv['day'], format='%m.%d')
@@ -77,46 +77,14 @@ def generate_graph(file,
         piv['month'], piv['day'], piv['hour'] = piv['month'].astype(str), piv['day'].astype(str), piv['hour'].astype(str)
         piv['date'] = pd.to_datetime(piv['month'] + '.' + piv['day'] + '.' + piv['hour'], format='%m.%d.%H')
 
-    # Nettoyage des données avant création du graphique
-    piv = piv.dropna()  # Supprimer les valeurs NaN
-    piv['auto_cons'] = piv['auto_cons'].fillna(0)  # Remplacer NaN par 0
-    piv['auto_cons'] = pd.to_numeric(piv['auto_cons'], errors='coerce').fillna(0)
-
     fig = px.area(piv,
                   x='date',
                   y='auto_cons',
                   color='id_cons',
-                  title='Profil d\'autoconsommation par consommateur',
+                  title='Profil d\'autoconsommation par consommateur cumulé par '+ resolution,
                   labels={'date': 'Date', 'auto_cons': 'Autoconsommation (kWh)'})
 
-    # Conversion post-création pour s'assurer de la compatibilité JSON
-    for trace in fig.data:
-        if trace.y is not None:
-            trace.y = tuple(float(y) for y in trace.y)  # Conversion en tuple de floats
-        if trace.x is not None and hasattr(trace.x[0], 'strftime'):
-            trace.x = tuple(x.strftime('%Y-%m-%d') for x in trace.x)
-
-    # Configuration explicite du layout
-    fig.update_layout(
-        width=None,  # Permet le responsive
-        height=600,
-        autosize=True,
-        margin=dict(l=50, r=50, t=80, b=50),
-        xaxis_title="Date",
-        yaxis_title="Autoconsommation (kWh)",
-        legend=dict(
-            orientation="v",
-            yanchor="top",
-            y=1,
-            xanchor="left",
-            x=1.02
-        ),
-        # Forcer le mode 'stack' pour les aires
-        hovermode='x unified'
-    )
-
-
-    if resolution == 'day':
+    if resolution == 'jour':
         fig.update_xaxes(
             range=['1900-01-01', '1900-12-31'],
             dtick='M1',  # Un trait par mois
