@@ -386,8 +386,11 @@ class Repartition:
                             add_cons = False,
                             add_auto_cons = True,
                             add_auto_prod_rate = False):
+        file_list = []
+
         for index_prod, prod in enumerate(prod_list):
             file = folder + str(prod.prm) + '_statistics.csv'
+            file_list.append(file)
             with open(file, 'w', newline='') as csvfile:
                 keywriter = csv.writer(csvfile,delimiter=';')
 
@@ -443,6 +446,8 @@ class Repartition:
                     keywriter.writerow(row_key)
 
                 print('File for statistics generated')
+
+            return file_list
 
     # Function used to generate monthly report
     def generate_monthly_report(self,

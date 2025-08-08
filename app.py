@@ -31,6 +31,10 @@ coverage_rate = 0
 
 cons_list = []
 prod_list = []
+stat_file_list = []
+
+# Global variables used to manage interactions between different blocs
+stat_file_generated = False
 
 class TextBlock(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -205,45 +209,25 @@ def upload_consumer_file():
 
     # Check if the post request has the file part
     if 'file' not in request.files:
-        flash('No file selected')
-        return redirect(request.url)
+        return jsonify({'success': False, 'message': 'No file selected'})
 
     file = request.files['file']
 
     # If user does not select file, browser submits empty part without filename
     if file.filename == '':
-        flash('No file selected')
-        return redirect(request.url)
+        return jsonify({'success': False, 'message': 'No file selected'})
 
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        # Lire le contenu du fichier en mémoire
-        # stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
-
         consumer = Consumer.Consumer(cons_name, cons_name, [0], [50], filepath)
-        # consumer.read_stream(stream)
         cons_list.append(consumer)
 
-        # csv_input = csv.reader(stream, delimiter=';')
-
-        # # Optionnel : ignorer la première ligne si elle contient des en-têtes
-        # headers = next(csv_input, None)  # Récupère les en-têtes ou None si fichier vide
-        #
-        # # Traiter chaque ligne du CSV
-        # rows_data = []
-        # for row_number, row in enumerate(csv_input, start=2):  # start=2 car ligne 1 = headers
-        #     if row:  # Ignorer les lignes vides
-        #         print(f"Ligne {row_number}: {row}")
-        #         # Traiter la ligne selon vos besoins
-        #         rows_data.append(row)
-
-        return redirect('/')
+        return jsonify({'success': True, 'message': 'File uploaded successfully'})
     else:
-        #flash('Invalid file type. Allowed types:')
-        return redirect('/')
+        return jsonify({'success': False, 'message': 'Invalid file type'})
 
 @app.route('/upload_producer_file', methods=['POST'])
 def upload_producer_file():
@@ -251,43 +235,26 @@ def upload_producer_file():
 
     # Check if the post request has the file part
     if 'file' not in request.files:
-        flash('No file selected')
-        return redirect(request.url)
+        return jsonify({'success': False, 'message': 'No file selected'})
 
     file = request.files['file']
 
     # If user does not select file, browser submits empty part without filename
     if file.filename == '':
-        flash('No file selected')
-        return redirect(request.url)
+        return jsonify({'success': False, 'message': 'No file selected'})
 
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        # Lire le contenu du fichier en mémoire
-        # stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
-
         producer = Producer.Producer(prod_name, 1234567901000, filepath)
-        # producer.read_stream(stream)
         prod_list.append(producer)
 
-        # csv_input = csv.reader(stream, delimiter=';')
-        #
-        # filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        # file.save(filepath)
-        #
-        # # Process the file here (read contents, parse, etc.)
-        # file_info = process_uploaded_file(filepath)
-        #
-        # flash(f'File {filename} uploaded successfully!')
-        # return render_template('upload.html', file_info=file_info, filename=filename)
-
-        return redirect('/')
+        return jsonify({'success': True, 'message': 'File uploaded successfully', 'filename': filename})
     else:
-        flash('Invalid file type. Allowed types:'+ALLOWED_EXTENSIONS.join(','))
-        return redirect(request.url)
+        return jsonify({'success': False, 'message': f'Invalid file type. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'})
+
 
 @app.route('/compute_repartition_keys', methods=['POST'])
 def compute_repartition_keys():
@@ -295,115 +262,169 @@ def compute_repartition_keys():
     global auto_production_rate_global
     global coverage_rate
 
-    # Get all information for test
-    prod_list.append(
-        Producer.Producer('Prod1', 1234567901000,
-                          app.config['UPLOAD_FOLDER'] + 'Simu_Prod_Enerev_100.csv'))
+    global stat_file_list
+    global stat_file_generated
 
-    cons_list.append(Consumer.Consumer('Parking_Harmony1','Parking_Harmony1',[ 0 ], [ 50 ],
-                                       app.config['UPLOAD_FOLDER'] + 'Parking_Harmony1_Conso_202312_202412_V1.csv'))
-    cons_list.append(Consumer.Consumer('Parking_Harmony2','Parking_Harmony2',[ 0 ], [ 50 ],
-                                       app.config['UPLOAD_FOLDER'] + 'Parking_Harmony2_Conso_202312_202412_V5.csv'))
-    cons_list.append(Consumer.Consumer('Particuliers', 'Particuliers', [1], [100],
-                                       app.config['UPLOAD_FOLDER'] + 'Simu_50_particuliers.csv'))
-    cons_list.append(Consumer.Consumer('PtiteEchoppe', 'PtiteEchoppe', [2], [50],
-                                       app.config['UPLOAD_FOLDER'] + 'Simu_PtiteEchoppe.csv'))
-    cons_list.append(Consumer.Consumer('Azimut', 'Azimut', [2], [50],
-                                       app.config['UPLOAD_FOLDER'] + 'Simu_Azimut.csv'))
+    try:
+        # Vérifier qu'il y a des producteurs et consommateurs
+        if not prod_list:
+            return jsonify({'success': False, 'message': 'Aucun producteur ajouté'})
 
-    # End test
+        if not cons_list:
+            return jsonify({'success': False, 'message': 'Aucun consommateur ajouté'})
 
-    rep = Repartition.Repartition()
-    rep.build_rep(prod_list, cons_list, Repartition.Strategy.DYNAMIC_BY_DEFAULT)
-    rep.write_repartition_key(prod_list, cons_list, EXPORT_FOLDER, True)
+        # Get all information for test
+        # prod_list.append(
+        #     Producer.Producer('Prod1', 1234567901000,
+        #                       app.config['UPLOAD_FOLDER'] + 'Simu_Prod_Enerev_100.csv'))
+        #
+        # cons_list.append(Consumer.Consumer('Parking_Harmony1','Parking_Harmony1',[ 0 ], [ 50 ],
+        #                                    app.config['UPLOAD_FOLDER'] + 'Parking_Harmony1_Conso_202312_202412_V1.csv'))
+        # cons_list.append(Consumer.Consumer('Parking_Harmony2','Parking_Harmony2',[ 0 ], [ 50 ],
+        #                                    app.config['UPLOAD_FOLDER'] + 'Parking_Harmony2_Conso_202312_202412_V5.csv'))
+        # cons_list.append(Consumer.Consumer('Particuliers', 'Particuliers', [1], [100],
+        #                                    app.config['UPLOAD_FOLDER'] + 'Simu_50_particuliers.csv'))
+        # cons_list.append(Consumer.Consumer('PtiteEchoppe', 'PtiteEchoppe', [2], [50],
+        #                                    app.config['UPLOAD_FOLDER'] + 'Simu_PtiteEchoppe.csv'))
+        # cons_list.append(Consumer.Consumer('Azimut', 'Azimut', [2], [50],
+        #                                    app.config['UPLOAD_FOLDER'] + 'Simu_Azimut.csv'))
 
-    rep.generate_statistics(prod_list, cons_list, EXPORT_FOLDER)
-    rep.generate_monthly_report(prod_list, cons_list, EXPORT_FOLDER, add_cons_mois=False)
+        # End test
 
-    auto_consumption_rate = rep.get_auto_consumption_rate(0)
-    print("Taux d'autoconsommation : ", auto_consumption_rate, "%")
+        rep = Repartition.Repartition()
+        rep.build_rep(prod_list, cons_list, Repartition.Strategy.DYNAMIC_BY_DEFAULT)
+        rep.write_repartition_key(prod_list, cons_list, EXPORT_FOLDER, True)
 
-    index_cons = 0
-    auto_production_rate_global = 0
-    for cons in cons_list:
-        auto_production_rate = rep.get_auto_production_rate(index_cons)
-        auto_production_rate_global += auto_production_rate
-        # print("Taux d'autoproduction de",cons.name,": ", auto_production_rate, "%")
-        index_cons += 1
-    auto_production_rate_global = rep.get_global_auto_production_rate(cons_list)
-    print("Taux d'autoproduction global : ", auto_production_rate_global, "%")
+        stat_file_list = rep.generate_statistics(prod_list, cons_list, EXPORT_FOLDER)
+        stat_file_generated = True
+        rep.generate_monthly_report(prod_list, cons_list, EXPORT_FOLDER, add_cons_mois=False)
 
-    coverage_rate = rep.get_coverage_rate(0, cons_list)
-    print("Taux de couverture : ", coverage_rate, "%")
+        auto_consumption_rate = rep.get_auto_consumption_rate(0)
+        print("Taux d'autoconsommation : ", auto_consumption_rate, "%")
 
-    # Graph.generate_graph(EXPORT_FOLDER + '1234567901000_statistics.csv', ';', group=False, resolution='month')
-    # Graph.generate_graph(EXPORT_FOLDER + '1234567901000_statistics.csv', ';', group=False, resolution='day')
+        index_cons = 0
+        auto_production_rate_global = 0
+        for cons in cons_list:
+            auto_production_rate = rep.get_auto_production_rate(index_cons)
+            auto_production_rate_global += auto_production_rate
+            index_cons += 1
+        auto_production_rate_global = rep.get_global_auto_production_rate(cons_list)
+        print("Taux d'autoproduction global : ", auto_production_rate_global, "%")
 
-    return redirect('/')
+        coverage_rate = rep.get_coverage_rate(0, cons_list)
+        print("Taux de couverture : ", coverage_rate, "%")
+
+        return jsonify({
+            'success': True,
+            'message': 'Calcul des clés de répartition terminé avec succès',
+            'indicators': {
+                'auto_consumption_rate': round(auto_consumption_rate, 2),
+                'auto_production_rate_global': round(auto_production_rate_global, 2),
+                'coverage_rate': round(coverage_rate, 2)
+            }
+        })
+
+    except Exception as e:
+        print(f"Erreur lors du calcul : {str(e)}")
+        return jsonify({'success': False, 'message': f'Erreur lors du calcul : {str(e)}'})
 
 
 @app.route('/data')
 def chart_data():
+    global stat_file_generated
+
     res = "jour"
 
-    compute_repartition_keys()
+    # compute_repartition_keys()
 
     # Créer votre graphique
-    fig = go.Figure()
+    if stat_file_generated:
+        fig = go.Figure()
 
-    fig = Graph.generate_graph(EXPORT_FOLDER + '1234567901000_statistics.csv',
-                               ';',
-                               group=False,
-                               resolution=res)
+        fig = Graph.generate_graph(stat_file_list[0],
+                                   ';',
+                                   group=False,
+                                   resolution=res)
 
-    fig.update_layout(
-        autosize=True,
-        # Forcer la configuration responsive
-        margin=dict(autoexpand=True)
-    )
+        fig.update_layout(
+            autosize=True,
+            # Forcer la configuration responsive
+            margin=dict(autoexpand=True)
+        )
 
-    # Version ultra-simple
-    traces = []
-    for trace in fig.data:
-        traces.append({
-            'type': 'scatter',
-            'mode': 'lines',
-            'fill': 'tonexty' if len(traces) > 0 else 'tozeroy',
-            'stackgroup': 'one',
-            'name': trace.name,
-            'x': [str(x) for x in trace.x],
-            'y': [float(str(y)) for y in trace.y]  # Double conversion pour être sûr
-        })
+        # Version ultra-simple
+        traces = []
+        for trace in fig.data:
+            traces.append({
+                'type': 'scatter',
+                'mode': 'lines',
+                'fill': 'tonexty' if len(traces) > 0 else 'tozeroy',
+                'stackgroup': 'one',
+                'name': trace.name,
+                'x': [str(x) for x in trace.x],
+                'y': [float(str(y)) for y in trace.y]  # Double conversion pour être sûr
+            })
 
-    result = {
-        'data': traces,
-        'layout': {
-            'title': 'Profil d\'autoconsommation par consommateur cumulé par ' + res,
-            'xaxis': {'title': 'Date'},
-            'yaxis': {'title': 'Autoconsommation (kWh)'},
-            'legend': {
-                'orientation': 'h',  # Orientation horizontale
-                'x': 0.5,            # Centré horizontalement
-                'xanchor': 'center', # Ancrage au centre
-                'y': -0.2,           # Position en bas du graphique
-                'yanchor': 'top'     # Ancrage par le haut de la légende
+        result = {
+            'data': traces,
+            'layout': {
+                'title': 'Autoconsommation cumulée par ' + res,
+                'xaxis': {'title': 'Date'},
+                'yaxis': {'title': 'Autoconsommation (kWh)'},
+                'legend': {
+                    'orientation': 'h',  # Orientation horizontale
+                    'x': 0.5,  # Centré horizontalement
+                    'xanchor': 'center',  # Ancrage au centre
+                    'y': -0.2,  # Position en bas du graphique
+                    'yanchor': 'top'  # Ancrage par le haut de la légende
+                }
+            },
+            'indicators': {
+                'auto_consumption_rate': auto_consumption_rate,
+                'auto_production_rate_global': auto_production_rate_global,
+                'coverage_rate': coverage_rate
             }
-        },
-        'indicators': {
-            'auto_consumption_rate': auto_consumption_rate,
-            'auto_production_rate_global': auto_production_rate_global,
-            'coverage_rate': coverage_rate
         }
-    }
 
-    return jsonify(result)
+        return jsonify(result)
 
-    # Méthode 1: Sérialisation standard
-    # try:
-    #     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
-    #     return graphJSON
-    # except Exception as e:
-    #     print(f"Erreur sérialisation standard: {e}")
+    else:
+        # Retourner un graphique vide par défaut
+        result = {
+            'data': [],
+            'layout': {
+                'title': 'Aucune donnée disponible - Veuillez calculer les clés de répartition',
+                'xaxis': {'title': 'Date'},
+                'yaxis': {'title': 'Autoconsommation (kWh)'},
+                'legend': {
+                    'orientation': 'h',
+                    'x': 0.5,
+                    'xanchor': 'center',
+                    'y': -0.2,
+                    'yanchor': 'top'
+                },
+                # Ajouter une annotation pour guider l'utilisateur
+                'annotations': [{
+                    'x': 0.5,
+                    'y': 0.5,
+                    'xref': 'paper',
+                    'yref': 'paper',
+                    'text': 'Cliquez sur "Calculer les clés de répartitions" pour générer le graphique',
+                    'showarrow': False,
+                    'font': {'size': 16, 'color': '#666'},
+                    'xanchor': 'center',
+                    'yanchor': 'middle'
+                }]
+            },
+            'indicators': {
+                'auto_consumption_rate': 0,
+                'auto_production_rate_global': 0,
+                'coverage_rate': 0
+            }
+        }
+
+        return jsonify(result)
+
 
 if __name__ == '__main__':
     app.run(debug=False)

@@ -95,16 +95,98 @@ html {
     max-width: 280px;
 }
 
+/* Styles pour le panneau latéral */
+.sidebar-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 50px;
+    height: 100vh;
+    background-color: rgba(248, 249, 250, 0.98);
+    backdrop-filter: blur(10px);
+    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    transition: none;
+    z-index: 1000;
+    overflow-y: auto;
+    border-right: 3px solid #007bff;
+    min-width: 50px;
+    max-width: 80vw;
+}
+
+.resize-handle {
+    position: fixed;
+    top: 0;
+    left: var(--sidebar-width, 50px);
+    width: 8px;
+    height: 100vh;
+    background: #007bff;
+    cursor: col-resize;
+    opacity: 0.8;
+    transition: opacity 0.3s ease, left 0.1s ease;
+    z-index: 1002;
+    border-radius: 0 3px 3px 0;
+}
+
+.resize-handle:hover {
+    opacity: 1;
+    background: #0056b3;
+}
+
+.resize-handle::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px;
+    height: 30px;
+    background: white;
+    border-radius: 2px;
+}
+
+.sidebar-content {
+    padding: 20px;
+    margin-top: 20px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar-panel.expanded .sidebar-content {
+    opacity: 1;
+}
+
+.main-content {
+    transition: margin-left 0.3s ease, width 0.3s ease;
+    margin-left: calc(var(--sidebar-width, 50px) + 8px);
+    padding-left: 20px;
+}
+
+.content-grid {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 40px);
+    gap: 20px;
+}
+
 @media (max-width: 768px) {
     .horizontal-container {
         flex-direction: column;
     }
+
+    .sidebar-panel {
+        width: 100%;
+        transform: translateX(-100%);
+    }
+
+    .main-content.sidebar-open {
+        margin-left: 0;
+    }
 }
 </style>
 
-<div class="horizontal-container" style="align-items: flex-start;">
-    <!-- Tableau de répartition au centre/gauche -->
-    <div class="grouped-block">
+<!-- Panneau latéral pour le tableau de répartition -->
+<div class="sidebar-panel" id="tableauSidebar">
+    <div class="sidebar-content">
         <h3 class="block-title" onclick="toggleBlock(this)">Tableau de répartition</h3>
         <div class="block-content">
             {% if consumer_blocks|length > 0 %}
@@ -141,10 +223,10 @@ html {
                                         <a href="/delete_producer/{{ producer_block.id }}" class="btn btn-danger" style="font-size: 12px; padding: 4px 8px;">Supprimer</a>
                                     </div>
                                 </div>
-                                <form method="POST" action="{{ url_for('upload_producer_file') }}" enctype="multipart/form-data" style="margin-bottom: 10px;">
+                                <form method="POST" action="{{ url_for('upload_producer_file') }}" enctype="multipart/form-data" style="margin-bottom: 10px;" id="form_producer_{{ producer_block.id }}">
                                     <input type="hidden" name="prod_name" value="{{ producer_block.prod_name }}">
                                     <input type="hidden" name="id" value="{{ producer_block.id }}">
-                                    <input type="file" name="file" id="file_producer_{{ producer_block.id }}" required style="margin-bottom: 5px;" onchange="this.form.submit();">
+                                    <input type="file" name="file" id="file_producer_{{ producer_block.id }}" required style="margin-bottom: 5px;" onchange="uploadProducerFile(this.form);">
                                 </form>
                             </td>
                             {% endfor %}
@@ -160,12 +242,12 @@ html {
                                         <a href="/delete_consumer/{{ consumer_block.id }}" class="btn btn-danger" style="font-size: 12px; padding: 4px 8px;">Supprimer</a>
                                     </div>
                                 </div>
-                                <form method="POST" action="{{ url_for('upload_consumer_file') }}" enctype="multipart/form-data" style="margin-bottom: 10px;">
+                                <form method="POST" action="{{ url_for('upload_consumer_file') }}" enctype="multipart/form-data" style="margin-bottom: 10px;" id="form_consumer_{{ consumer_block.id }}">
                                     <input type="hidden" name="cons_name" value="{{ consumer_block.cons_name }}">
                                     <input type="hidden" name="id" value="{{ consumer_block.id }}">
                                     <input type="hidden" name="priority" value="{{ consumer_block.priority }}">
                                     <input type="hidden" name="ratio" value="{{ consumer_block.ratio }}">
-                                    <input type="file" name="file" id="file_consumer_{{ consumer_block.id }}" required style="margin-bottom: 5px;" onchange="this.form.submit();">
+                                    <input type="file" name="file" id="file_consumer_{{ consumer_block.id }}" required style="margin-bottom: 5px;" onchange="uploadConsumerFile(this.form);">
                                 </form>
                             </td>
                             {% for producer_block in producer_blocks %}
@@ -196,9 +278,14 @@ html {
             {% endif %}
         </div>
     </div>
+</div>
 
-    <!-- Bloc 4: Configuration et Graphique à droite -->
-    <div style="flex: 1; display: flex; flex-direction: column; gap: 20px; height: calc(100vh - 60px);">
+<!-- Barre de redimensionnement séparée -->
+<div class="resize-handle" id="resizeHandle"></div>
+
+<!-- Contenu principal -->
+<div class="main-content" id="mainContent">
+    <div class="content-grid">
         <!-- Bloc Configuration et calcul en haut -->
         <div class="grouped-block" style="flex-shrink: 0;">
             <h3 class="block-title" onclick="toggleBlock(this)">Configuration et calcul</h3>
@@ -215,7 +302,7 @@ html {
                                 <option value="static">Statique</option>
                             </select>
                         </div>
-                        <form action="{{ url_for('compute_repartition_keys') }}" method="POST">
+                        <form action="{{ url_for('compute_repartition_keys') }}" method="POST" onsubmit="return computeRepartitionKeys(event, this);">
                             <button type="submit" class="btn btn-primary" style="width: 100%;">Calculer les clés de répartitions</button>
                         </form>
                     </div>
@@ -254,6 +341,72 @@ html {
 
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script>
+    // Système de redimensionnement du panneau latéral
+    let isResizing = false;
+    let currentSidebarWidth = localStorage.getItem('sidebarWidth') || 50;
+
+    function initializeSidebar() {
+        const sidebar = document.getElementById('tableauSidebar');
+        const resizeHandle = document.getElementById('resizeHandle');
+        const mainContent = document.getElementById('mainContent');
+
+        // Restaurer la largeur sauvegardée
+        setSidebarWidth(parseInt(currentSidebarWidth));
+
+        resizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.addEventListener('mousemove', handleResize);
+            document.addEventListener('mouseup', stopResize);
+            e.preventDefault();
+        });
+
+        function handleResize(e) {
+            if (!isResizing) return;
+
+            const newWidth = e.clientX;
+
+            // Limiter la largeur entre 50px et 80% de l'écran
+            const minWidth = 50;
+            const maxWidth = window.innerWidth * 0.8;
+            const width = Math.max(minWidth, Math.min(maxWidth, newWidth));
+
+            setSidebarWidth(width);
+        }
+
+        function stopResize() {
+            isResizing = false;
+            document.removeEventListener('mousemove', handleResize);
+            document.removeEventListener('mouseup', stopResize);
+
+            // Sauvegarder la largeur
+            localStorage.setItem('sidebarWidth', currentSidebarWidth);
+        }
+    }
+
+    function setSidebarWidth(width) {
+        currentSidebarWidth = width;
+        const sidebar = document.getElementById('tableauSidebar');
+        const resizeHandle = document.getElementById('resizeHandle');
+        const mainContent = document.getElementById('mainContent');
+
+        sidebar.style.width = width + 'px';
+        document.documentElement.style.setProperty('--sidebar-width', width + 'px');
+
+        // Afficher le contenu si la largeur dépasse 200px
+        if (width > 200) {
+            sidebar.classList.add('expanded');
+        } else {
+            sidebar.classList.remove('expanded');
+        }
+
+        // Redimensionner le graphique
+        setTimeout(() => {
+            if (window.Plotly) {
+                Plotly.Plots.resize('chart');
+            }
+        }, 50);
+    }
+
     function toggleBlock(titleElement) {
         const content = titleElement.nextElementSibling;
         const isCollapsed = content.classList.contains('collapsed');
@@ -302,40 +455,161 @@ html {
         }
     }
 
-    // Initialiser l'état des champs au chargement de la page
-    document.addEventListener('DOMContentLoaded', function() {
-        handleKeyTypeChange();
-    });
+    // Fonction pour calculer les clés de répartition sans redirection
+    function computeRepartitionKeys(event, form) {
+        event.preventDefault();
 
-    fetch('/data')
+        // Désactiver le bouton pendant le calcul
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalText = submitButton.textContent;
+        submitButton.disabled = true;
+        submitButton.textContent = 'Calcul en cours...';
+
+        const formData = new FormData(form);
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData
+        })
         .then(response => response.json())
-        .then(fig => {
-            Plotly.newPlot('chart', fig.data, fig.layout, {responsive: true});
+        .then(data => {
+            if (data.success) {
+                console.log('Calcul des clés de répartition terminé');
+                showMessage('Calcul des clés de répartition terminé avec succès', 'success');
 
-            // Redimensionner le graphique quand la fenêtre change de taille
-            window.addEventListener('resize', function() {
-                Plotly.Plots.resize('chart');
-            });
+                // Mettre à jour les indicateurs
+                if (data.indicators) {
+                    document.getElementById('auto_consumption_rate').textContent = data.indicators.auto_consumption_rate + '%';
+                    document.getElementById('auto_production_rate_global').textContent = data.indicators.auto_production_rate_global + '%';
+                    document.getElementById('coverage_rate').textContent = data.indicators.coverage_rate + '%';
+                }
 
-            // Observer les changements de taille du conteneur
-            if (window.ResizeObserver) {
-                const chartContainer = document.getElementById('chart');
-                const resizeObserver = new ResizeObserver(function(entries) {
-                    Plotly.Plots.resize('chart');
-                });
-                resizeObserver.observe(chartContainer.parentElement);
-            }
+                // Recharger le graphique
+                loadChart();
 
-            // Mettre à jour les indicateurs si disponibles dans la réponse
-            if (fig.indicators) {
-                document.getElementById('auto_consumption_rate').textContent = fig.indicators.auto_consumption_rate + '%';
-                document.getElementById('auto_production_rate_global').textContent = fig.indicators.auto_production_rate_global + '%';
-                document.getElementById('coverage_rate').textContent = fig.indicators.coverage_rate + '%';
+            } else {
+                console.error('Erreur calcul:', data.message);
+                showMessage('Erreur: ' + data.message, 'error');
             }
         })
         .catch(error => {
-            console.error('Erreur lors du chargement des données:', error);
+            console.error('Erreur:', error);
+            showMessage('Erreur lors du calcul', 'error');
+        })
+        .finally(() => {
+            // Réactiver le bouton
+            submitButton.disabled = false;
+            submitButton.textContent = originalText;
         });
+
+        return false;
+    }
+
+    // Fonction pour charger le graphique
+    function loadChart() {
+        fetch('/data')
+            .then(response => response.json())
+            .then(fig => {
+                Plotly.newPlot('chart', fig.data, fig.layout, {responsive: true});
+
+                // Mettre à jour les indicateurs si disponibles dans la réponse
+                if (fig.indicators) {
+                    document.getElementById('auto_consumption_rate').textContent = fig.indicators.auto_consumption_rate + '%';
+                    document.getElementById('auto_production_rate_global').textContent = fig.indicators.auto_production_rate_global + '%';
+                    document.getElementById('coverage_rate').textContent = fig.indicators.coverage_rate + '%';
+                }
+            })
+            .catch(error => {
+                console.error('Erreur lors du chargement des données:', error);
+            });
+    }
+
+    // Fonction pour upload de fichier consommateur sans redirection
+    function uploadConsumerFile(form) {
+        const formData = new FormData(form);
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Fichier consommateur uploadé avec succès');
+                showMessage('Fichier consommateur uploadé avec succès', 'success');
+            } else {
+                console.error('Erreur upload consommateur:', data.message);
+                showMessage('Erreur: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            showMessage('Erreur lors de l\'upload', 'error');
+        });
+    }
+
+    // Fonction pour upload de fichier producteur sans redirection
+    function uploadProducerFile(form) {
+        const formData = new FormData(form);
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Fichier producteur uploadé avec succès');
+                showMessage('Fichier producteur uploadé avec succès', 'success');
+            } else {
+                console.error('Erreur upload producteur:', data.message);
+                showMessage('Erreur: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            showMessage('Erreur lors de l\'upload', 'error');
+        });
+    }
+
+    // Fonction utilitaire pour afficher des messages
+    function showMessage(message, type) {
+        // Créer un élément de notification temporaire
+        const notification = document.createElement('div');
+        notification.style.position = 'fixed';
+        notification.style.top = '20px';
+        notification.style.right = '20px';
+        notification.style.padding = '10px 15px';
+        notification.style.borderRadius = '5px';
+        notification.style.color = 'white';
+        notification.style.zIndex = '10000';
+        notification.style.fontSize = '12px';
+
+        if (type === 'success') {
+            notification.style.backgroundColor = '#28a745';
+        } else {
+            notification.style.backgroundColor = '#dc3545';
+        }
+
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        // Supprimer la notification après 3 secondes
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 3000);
+    }
+
+    // Initialiser l'état des champs au chargement de la page
+    document.addEventListener('DOMContentLoaded', function() {
+        handleKeyTypeChange();
+        initializeSidebar(); // Initialiser le système de redimensionnement
+        loadChart(); // Charger le graphique au démarrage
+    });
+
+    loadChart(); // Chargement initial du graphique
 </script>
 
 {% endblock %}

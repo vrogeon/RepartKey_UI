@@ -62,20 +62,24 @@ def generate_graph(file,
     area['hour'] = area['Horodate'].dt.hour
     area['day'] = area['Horodate'].dt.day
     area['month'] = area['Horodate'].dt.month
+    area['year'] = area['Horodate'].dt.year
 
     # Create pivot table to summarize consumption
     if resolution == 'mois':
         piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'month'], aggfunc='sum').reset_index()
+        piv['year'] = piv['year'].astype(str)
         piv['month'] = piv['month'].astype(str)
-        piv['date'] = pd.to_datetime(piv['month'], format='%m')
+        piv['date'] = pd.to_datetime(piv['year'] + '.' + piv['month'], format='%Y.%m')
     elif resolution == 'jour':
-        piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'month', 'day'], aggfunc='sum').reset_index()
+        piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'year', 'month', 'day'], aggfunc='sum').reset_index()
+        piv['year'] = piv['year'].astype(str)
         piv['month'], piv['day'] = piv['month'].astype(str), piv['day'].astype(str)
-        piv['date'] = pd.to_datetime(piv['month'] + '.' + piv['day'], format='%m.%d')
+        piv['date'] = pd.to_datetime(piv['year'] + '.' + piv['month'] + '.' + piv['day'], format='%Y.%m.%d')
     else:
         piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'month', 'day', 'hour'], aggfunc='sum').reset_index()
+        piv['year'] = piv['year'].astype(str)
         piv['month'], piv['day'], piv['hour'] = piv['month'].astype(str), piv['day'].astype(str), piv['hour'].astype(str)
-        piv['date'] = pd.to_datetime(piv['month'] + '.' + piv['day'] + '.' + piv['hour'], format='%m.%d.%H')
+        piv['date'] = pd.to_datetime(piv['year'] + '.' + piv['month'] + '.' + piv['day'] + '.' + piv['hour'], format='%Y.%m.%d.%H')
 
     fig = px.area(piv,
                   x='date',
@@ -86,7 +90,7 @@ def generate_graph(file,
 
     if resolution == 'jour':
         fig.update_xaxes(
-            range=['1900-01-01', '1900-12-31'],
+            range=['2025-01-01', '2025-12-31'],
             dtick='M1',  # Un trait par mois
             tickformat='%d %B',  # Format d'affichage des dates
             minor=dict(
@@ -98,7 +102,7 @@ def generate_graph(file,
         )
     else:
         fig.update_xaxes(
-            range=['1900-01-01', '1900-12-31'],
+            range=['2025-01-01', '2025-12-31'],
             dtick='M1',  # Un trait par mois
             tickformat='%B'  # Format d'affichage des dates
         )
