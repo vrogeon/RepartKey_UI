@@ -38,6 +38,13 @@ class Consumer:
                 #print(row)
             print('Consumer file read!')
 
+    # This function adds default values for a new producer
+    def add_producer_values(self, priority_value=0, ratio_value=100):
+        """Ajoute des valeurs par défaut pour un nouveau producteur"""
+        self.priority_list.append(priority_value)
+        self.ratio_list.append(ratio_value)
+        print(f'Producer values added to consumer {self.name}: priority={priority_value}, ratio={ratio_value}')
+
     # This function reads a stream
     # def read_stream(self, stream):
     #     cons_file = csv.reader(stream,delimiter=';')
@@ -48,4 +55,3 @@ class Consumer:
     #             print('Erreur')
     #         #print(row)
     #     print('Stream read!')
-

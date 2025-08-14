@@ -189,7 +189,7 @@ html {
     <div class="sidebar-content">
         <h3 class="block-title" onclick="toggleBlock(this)">Tableau de répartition</h3>
         <div class="block-content">
-            {% if consumer_blocks|length > 0 %}
+            {% if true %}
             <div style="overflow-x: auto;">
                 <table style="width: 100%; border-collapse: collapse;">
                     <tbody>
@@ -199,7 +199,7 @@ html {
                                 <div style="padding: 8px;">
                                     <!-- Ligne Producteur en haut -->
                                     <div style="margin-bottom: 10px; line-height: 1;">
-                                        <form action="{{ url_for('add_producer_block') }}" method="POST" style="display: inline-block;">
+                                        <form action="{{ url_for('add_producer_block') }}" method="POST" style="display: inline-block;" onsubmit="return addProducerBlock(event, this);">
                                             <input type="text" name="prod_name" id="prod_name_table" class="form-control" placeholder="Nom producteur" required style="width: 120px; font-size: 12px; padding: 6px; margin: 0; vertical-align: middle; display: inline-block;">
                                             <button type="submit" class="btn btn-primary" style="font-size: 12px; padding: 6px 8px; white-space: nowrap; margin: 0; margin-left: 10px; vertical-align: middle; display: inline-block;">Ajouter</button>
                                         </form>
@@ -207,7 +207,7 @@ html {
 
                                     <!-- Ligne Consommateur en bas -->
                                     <div style="line-height: 1;">
-                                        <form action="{{ url_for('add_consumer_block') }}" method="POST" style="display: inline-block;">
+                                        <form action="{{ url_for('add_consumer_block') }}" method="POST" style="display: inline-block;" onsubmit="return addConsumerBlock(event, this);">
                                             <input type="text" name="cons_name" id="cons_name_table" class="form-control" placeholder="Nom consommateur" required style="width: 120px; font-size: 12px; padding: 6px; margin: 0; vertical-align: middle; display: inline-block;">
                                             <button type="submit" class="btn btn-primary" style="font-size: 12px; padding: 6px 8px; white-space: nowrap; margin: 0; margin-left: 10px; vertical-align: middle; display: inline-block;">Ajouter</button>
                                         </form>
@@ -255,14 +255,14 @@ html {
                                 <div style="display: flex; gap: 10px; justify-content: center; align-items: flex-start;">
                                     <div style="flex: 1;">
                                         <strong>Priorité:</strong><br>
-                                        <div title="prio" class="text-content priority-field" contenteditable="true" style="border: 1px solid #ccc; padding: 5px; background: white; margin-top: 5px;">
-                                            {{ consumer_block.priority }}
+                                        <div title="prio" class="text-content priority-field" contenteditable="true" style="border: 1px solid #ccc; padding: 5px; background: white; margin-top: 5px;" data-consumer-id="{{ consumer_block.id }}" data-producer-index="{{ loop.index0 }}" data-field-type="priority" onblur="updateConsumerData(this)">
+                                            {{ consumer_block.get_priority_for_producer(loop.index0) if consumer_block.get_priority_for_producer(loop.index0) is defined else 0 }}
                                         </div>
                                     </div>
                                     <div style="flex: 1;">
                                         <strong>Ratio:</strong><br>
-                                        <div class="text-content ratio-field" contenteditable="true" style="border: 1px solid #ccc; padding: 5px; background: white; margin-top: 5px;">
-                                            {{ consumer_block.ratio }}
+                                        <div class="text-content ratio-field" contenteditable="true" style="border: 1px solid #ccc; padding: 5px; background: white; margin-top: 5px;" data-consumer-id="{{ consumer_block.id }}" data-producer-index="{{ loop.index0 }}" data-field-type="ratio" onblur="updateConsumerData(this)">
+                                            {{ consumer_block.get_ratio_for_producer(loop.index0) if consumer_block.get_ratio_for_producer(loop.index0) is defined else 0 }}
                                         </div>
                                     </div>
                                 </div>
@@ -303,6 +303,7 @@ html {
                             </select>
                         </div>
                         <form action="{{ url_for('compute_repartition_keys') }}" method="POST" onsubmit="return computeRepartitionKeys(event, this);">
+                            <input type="hidden" name="cles" id="cles_hidden" value="default">
                             <button type="submit" class="btn btn-primary" style="width: 100%;">Calculer les clés de répartitions</button>
                         </form>
                     </div>
@@ -432,6 +433,9 @@ html {
         const priorityFields = document.querySelectorAll('.priority-field');
         const ratioFields = document.querySelectorAll('.ratio-field');
 
+        // Mettre à jour le champ caché du formulaire
+        document.getElementById('cles_hidden').value = keyType;
+
         if (keyType === 'default') {
             // Désactiver les champs Priorité et Ratio
             priorityFields.forEach(field => {
@@ -455,7 +459,98 @@ html {
         }
     }
 
-    // Fonction pour calculer les clés de répartition sans redirection
+    // Fonction pour mettre à jour les données du consommateur
+    function updateConsumerData(element) {
+        const consumerId = element.getAttribute('data-consumer-id');
+        const producerIndex = element.getAttribute('data-producer-index');
+        const fieldType = element.getAttribute('data-field-type');
+        const value = element.textContent.trim();
+
+        const data = {
+            consumer_id: consumerId,
+            producer_index: parseInt(producerIndex),
+            field_type: fieldType,
+            value: parseInt(value) || 0
+        };
+
+        fetch('/update_consumer_data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Données mises à jour avec succès');
+                showMessage('Valeur mise à jour', 'success');
+            } else {
+                console.error('Erreur lors de la mise à jour:', data.message);
+                showMessage('Erreur: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            showMessage('Erreur lors de la mise à jour', 'error');
+        });
+    }
+
+    // Fonction pour ajouter un producteur
+    function addProducerBlock(event, form) {
+        event.preventDefault();
+
+        const formData = new FormData(form);
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showMessage('Producteur ajouté avec succès', 'success');
+                // Recharger la page pour voir les changements
+                window.location.reload();
+            } else {
+                showMessage('Erreur: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            showMessage('Erreur lors de l\'ajout', 'error');
+        });
+
+        return false;
+    }
+
+    // Fonction pour ajouter un consommateur
+    function addConsumerBlock(event, form) {
+        event.preventDefault();
+
+        const formData = new FormData(form);
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showMessage('Consommateur ajouté avec succès', 'success');
+                // Recharger la page pour voir les changements
+                window.location.reload();
+            } else {
+                showMessage('Erreur: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            showMessage('Erreur lors de l\'ajout', 'error');
+        });
+
+        return false;
+    }
     function computeRepartitionKeys(event, form) {
         event.preventDefault();
 

@@ -3,6 +3,8 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
+import json
+import pickle
 
 import io
 import csv
@@ -14,7 +16,6 @@ import Graph
 
 import plotly.graph_objects as go
 import plotly.utils
-import json
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///textblocks.db'
@@ -29,12 +30,11 @@ auto_consumption_rate = 0
 auto_production_rate_global = 0
 coverage_rate = 0
 
-cons_list = []
-prod_list = []
 stat_file_list = []
 
 # Global variables used to manage interactions between different blocs
 stat_file_generated = False
+
 
 class TextBlock(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -45,15 +45,68 @@ class TextBlock(db.Model):
     def __repr__(self):
         return f'<TextBlock {self.title}>'
 
+
 class ConsumerBlock(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     cons_name = db.Column(db.String(100), nullable=False)
     date_created = db.Column(db.DateTime, default=datetime.utcnow)
-    priority = 0
-    ratio = 0
+
+    def get_consumer_object(self):
+        """Retourne l'objet Consumer associé"""
+        consumer_obj = ConsumerObject.query.filter_by(consumer_block_id=self.id).first()
+        if consumer_obj:
+            return consumer_obj.get_consumer_object()
+        return None
+
+    def get_priority_for_producer(self, producer_index):
+        """Retourne la priorité pour un producteur spécifique"""
+        consumer = self.get_consumer_object()
+        if consumer and producer_index < len(consumer.priority_list):
+            return consumer.priority_list[producer_index]
+        return 0  # Valeur par défaut
+
+    def get_ratio_for_producer(self, producer_index):
+        """Retourne le ratio pour un producteur spécifique"""
+        consumer = self.get_consumer_object()
+        if consumer and producer_index < len(consumer.ratio_list):
+            return consumer.ratio_list[producer_index]
+        return 0  # Valeur par défaut
+
+    def set_priority_for_producer(self, producer_index, value):
+        """Définit la priorité pour un producteur spécifique"""
+        consumer_obj_record = ConsumerObject.query.filter_by(consumer_block_id=self.id).first()
+        if consumer_obj_record:
+            consumer = consumer_obj_record.get_consumer_object()
+            if consumer:
+                # Étendre la liste si nécessaire
+                while len(consumer.priority_list) <= producer_index:
+                    consumer.priority_list.append(0)
+                consumer.priority_list[producer_index] = int(value)
+
+                # Sauvegarder l'objet modifié
+                consumer_obj_record.set_consumer_object(consumer)
+                consumer_obj_record.priority_list = json.dumps(consumer.priority_list)
+                db.session.commit()
+
+    def set_ratio_for_producer(self, producer_index, value):
+        """Définit le ratio pour un producteur spécifique"""
+        consumer_obj_record = ConsumerObject.query.filter_by(consumer_block_id=self.id).first()
+        if consumer_obj_record:
+            consumer = consumer_obj_record.get_consumer_object()
+            if consumer:
+                # Étendre la liste si nécessaire
+                while len(consumer.ratio_list) <= producer_index:
+                    consumer.ratio_list.append(0)
+                consumer.ratio_list[producer_index] = int(value)
+
+                # Sauvegarder l'objet modifié
+                consumer_obj_record.set_consumer_object(consumer)
+                consumer_obj_record.ratio_list = json.dumps(consumer.ratio_list)
+                db.session.commit()
 
     def __repr__(self):
-        return f'<ConsumerBlock>'
+        return f'<ConsumerBlock {self.cons_name}>'
+
 
 class ProducerBlock(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -61,7 +114,154 @@ class ProducerBlock(db.Model):
     date_created = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
-        return f'<ConsumerBlock>'
+        return f'<ProducerBlock {self.prod_name}>'
+
+
+# Nouveaux modèles SQLAlchemy pour stocker les objets Consumer et Producer
+class ConsumerObject(db.Model):
+    __tablename__ = 'consumer_objects'
+
+    id = db.Column(db.Integer, primary_key=True)
+    consumer_block_id = db.Column(db.Integer, db.ForeignKey('consumer_block.id'), unique=True, nullable=False)
+    consumer_name = db.Column(db.String(100), nullable=False)
+    file_path = db.Column(db.String(255), nullable=False)
+    priority_list = db.Column(db.Text, default='[]')  # JSON des priorités
+    ratio_list = db.Column(db.Text, default='[]')  # JSON des ratios
+    object_data = db.Column(db.LargeBinary, nullable=True)  # Objet sérialisé (pickle)
+    date_created = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relation avec ConsumerBlock
+    consumer_block = db.relationship('ConsumerBlock', backref='consumer_object')
+
+    def set_consumer_object(self, consumer_obj):
+        """Sérialise et stocke l'objet Consumer"""
+        self.object_data = pickle.dumps(consumer_obj)
+
+    def get_consumer_object(self):
+        """Désérialise et retourne l'objet Consumer"""
+        if self.object_data:
+            return pickle.loads(self.object_data)
+        return None
+
+    def __repr__(self):
+        return f'<ConsumerObject {self.consumer_name}>'
+
+
+class ProducerObject(db.Model):
+    __tablename__ = 'producer_objects'
+
+    id = db.Column(db.Integer, primary_key=True)
+    producer_block_id = db.Column(db.Integer, db.ForeignKey('producer_block.id'), unique=True, nullable=False)
+    producer_name = db.Column(db.String(100), nullable=False)
+    file_path = db.Column(db.String(255), nullable=False)
+    producer_id_number = db.Column(db.BigInteger, default=1234567901000)
+    object_data = db.Column(db.LargeBinary, nullable=True)  # Objet sérialisé (pickle)
+    date_created = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relation avec ProducerBlock
+    producer_block = db.relationship('ProducerBlock', backref='producer_object')
+
+    def set_producer_object(self, producer_obj):
+        """Sérialise et stocke l'objet Producer"""
+        self.object_data = pickle.dumps(producer_obj)
+
+    def get_producer_object(self):
+        """Désérialise et retourne l'objet Producer"""
+        if self.object_data:
+            return pickle.loads(self.object_data)
+        return None
+
+    def __repr__(self):
+        return f'<ProducerObject {self.producer_name}>'
+
+
+# Fonctions d'accès aux objets Consumer et Producer
+def get_cons_list():
+    """Retourne la liste des objets Consumer depuis SQLAlchemy"""
+    consumer_objects = ConsumerObject.query.all()
+    consumers = []
+    for consumer_obj in consumer_objects:
+        consumer = consumer_obj.get_consumer_object()
+        if consumer:
+            consumers.append(consumer)
+    return consumers
+
+
+def get_prod_list():
+    """Retourne la liste des objets Producer depuis SQLAlchemy"""
+    producer_objects = ProducerObject.query.all()
+    producers = []
+    for producer_obj in producer_objects:
+        producer = producer_obj.get_producer_object()
+        if producer:
+            producers.append(producer)
+    return producers
+
+
+def save_consumer(consumer_block_id, consumer_obj, consumer_name, file_path, priorities, ratios):
+    """Sauvegarde un objet Consumer dans SQLAlchemy"""
+    # Vérifier si l'objet existe déjà
+    existing = ConsumerObject.query.filter_by(consumer_block_id=consumer_block_id).first()
+
+    if existing:
+        # Mettre à jour l'objet existant
+        existing.consumer_name = consumer_name
+        existing.file_path = file_path
+        existing.priority_list = json.dumps(priorities)
+        existing.ratio_list = json.dumps(ratios)
+        existing.set_consumer_object(consumer_obj)
+    else:
+        # Créer un nouvel objet
+        new_consumer_obj = ConsumerObject(
+            consumer_block_id=consumer_block_id,
+            consumer_name=consumer_name,
+            file_path=file_path,
+            priority_list=json.dumps(priorities),
+            ratio_list=json.dumps(ratios)
+        )
+        new_consumer_obj.set_consumer_object(consumer_obj)
+        db.session.add(new_consumer_obj)
+
+    db.session.commit()
+
+
+def save_producer(producer_block_id, producer_obj, producer_name, file_path):
+    """Sauvegarde un objet Producer dans SQLAlchemy"""
+    # Vérifier si l'objet existe déjà
+    existing = ProducerObject.query.filter_by(producer_block_id=producer_block_id).first()
+
+    if existing:
+        # Mettre à jour l'objet existant
+        existing.producer_name = producer_name
+        existing.file_path = file_path
+        existing.set_producer_object(producer_obj)
+    else:
+        # Créer un nouvel objet
+        new_producer_obj = ProducerObject(
+            producer_block_id=producer_block_id,
+            producer_name=producer_name,
+            file_path=file_path
+        )
+        new_producer_obj.set_producer_object(producer_obj)
+        db.session.add(new_producer_obj)
+
+    db.session.commit()
+
+
+def delete_consumer_object(consumer_block_id):
+    """Supprime un objet Consumer de SQLAlchemy"""
+    consumer_obj = ConsumerObject.query.filter_by(consumer_block_id=consumer_block_id).first()
+    if consumer_obj:
+        db.session.delete(consumer_obj)
+        db.session.commit()
+
+
+def delete_producer_object(producer_block_id):
+    """Supprime un objet Producer de SQLAlchemy"""
+    producer_obj = ProducerObject.query.filter_by(producer_block_id=producer_block_id).first()
+    if producer_obj:
+        db.session.delete(producer_obj)
+        db.session.commit()
 
 
 # Create database tables
@@ -74,7 +274,8 @@ def index():
     text_blocks = TextBlock.query.order_by(TextBlock.date_created.desc()).all()
     consumer_blocks = ConsumerBlock.query.order_by(ConsumerBlock.id).all()
     producer_blocks = ProducerBlock.query.order_by(ProducerBlock.id).all()
-    return render_template('index.html', text_blocks=text_blocks, consumer_blocks=consumer_blocks, producer_blocks=producer_blocks)
+    return render_template('index.html', text_blocks=text_blocks, consumer_blocks=consumer_blocks,
+                           producer_blocks=producer_blocks)
 
 
 @app.route('/add', methods=['POST'])
@@ -91,31 +292,136 @@ def add_text_block():
     except:
         return 'There was an issue adding your text block'
 
+
+# Fonctions utilitaires pour la gestion des listes priority/ratio
+def get_producer_count():
+    """Retourne le nombre de producteurs existants"""
+    return ProducerBlock.query.count()
+
+
+def update_all_consumers_for_new_producer():
+    """Met à jour tous les consumers existants quand un nouveau producteur est ajouté"""
+    consumer_objects = ConsumerObject.query.all()
+    for consumer_obj_record in consumer_objects:
+        consumer = consumer_obj_record.get_consumer_object()
+        if consumer:
+            # Ajouter une valeur pour le nouveau producteur
+            consumer.add_producer_values()
+
+            # Sauvegarder l'objet modifié
+            consumer_obj_record.set_consumer_object(consumer)
+            consumer_obj_record.priority_list = json.dumps(consumer.priority_list)
+            consumer_obj_record.ratio_list = json.dumps(consumer.ratio_list)
+
+    if consumer_objects:
+        db.session.commit()
+
+
+def update_all_consumers_for_deleted_producer(producer_index):
+    """Met à jour tous les consumers existants quand un producteur est supprimé"""
+    consumer_objects = ConsumerObject.query.all()
+    for consumer_obj_record in consumer_objects:
+        consumer = consumer_obj_record.get_consumer_object()
+        if consumer:
+            # Supprimer les valeurs correspondant au producteur supprimé
+            if producer_index < len(consumer.priority_list):
+                consumer.priority_list.pop(producer_index)
+            if producer_index < len(consumer.ratio_list):
+                consumer.ratio_list.pop(producer_index)
+
+            # Sauvegarder l'objet modifié
+            consumer_obj_record.set_consumer_object(consumer)
+            consumer_obj_record.priority_list = json.dumps(consumer.priority_list)
+            consumer_obj_record.ratio_list = json.dumps(consumer.ratio_list)
+
+    if consumer_objects:
+        db.session.commit()
+
+
+def get_producer_index_by_id(producer_id):
+    """Retourne l'index d'un producteur basé sur son ID (ordre de création)"""
+    producers = ProducerBlock.query.order_by(ProducerBlock.id).all()
+    for index, producer in enumerate(producers):
+        if producer.id == producer_id:
+            return index
+    return -1
+
+
 @app.route('/add_consumer', methods=['POST'])
 def add_consumer_block():
     cons_name = request.form['cons_name']
 
+    # Créer le ConsumerBlock
     new_consumer_block = ConsumerBlock(cons_name=cons_name)
 
     try:
         db.session.add(new_consumer_block)
         db.session.commit()
-        return redirect('/')
+
+        # Obtenir le nombre de producteurs existants
+        producer_count = get_producer_count()
+
+        # Créer les listes avec les valeurs par défaut
+        priority_list = [0] * producer_count  # 0 pour chaque producteur
+        ratio_list = [100] * producer_count  # 100 pour chaque producteur
+
+        # Créer l'objet Consumer avec les listes initialisées
+        consumer = Consumer.Consumer(cons_name, cons_name, priority_list, ratio_list)
+
+        # Sauvegarder l'objet Consumer dans SQLAlchemy
+        save_consumer(new_consumer_block.id, consumer, cons_name, "", priority_list, ratio_list)
+
+        return jsonify({'success': True, 'message': 'Consommateur ajouté avec succès'})
     except Exception as e:
-        return 'There was an issue adding your consumer:'+ e
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
 
 @app.route('/add_producer', methods=['POST'])
 def add_producer_block():
     prod_name = request.form['prod_name']
 
+    # Créer le ProducerBlock
     new_producer_block = ProducerBlock(prod_name=prod_name)
 
     try:
         db.session.add(new_producer_block)
         db.session.commit()
-        return redirect('/')
+
+        # Créer l'objet Producer sans fichier
+        producer = Producer.Producer(prod_name, 1234567901000)
+
+        # Sauvegarder l'objet Producer dans SQLAlchemy
+        save_producer(new_producer_block.id, producer, prod_name, "")
+
+        # Mettre à jour tous les consumers existants pour le nouveau producteur
+        update_all_consumers_for_new_producer()
+
+        return jsonify({'success': True, 'message': 'Producteur ajouté avec succès'})
     except Exception as e:
-        return 'There was an issue adding your producer:'+ e
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+
+@app.route('/update_consumer_data', methods=['POST'])
+def update_consumer_data():
+    try:
+        data = request.get_json()
+        consumer_id = data.get('consumer_id')
+        producer_index = data.get('producer_index')  # Index du producteur
+        field_type = data.get('field_type')  # 'priority' ou 'ratio'
+        value = data.get('value')
+
+        consumer_block = ConsumerBlock.query.get_or_404(consumer_id)
+
+        if field_type == 'priority':
+            consumer_block.set_priority_for_producer(producer_index, value)
+        elif field_type == 'ratio':
+            consumer_block.set_ratio_for_producer(producer_index, value)
+
+        return jsonify({'success': True, 'message': 'Données mises à jour'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
 
 @app.route('/delete/<int:id>')
 def delete(id):
@@ -128,27 +434,46 @@ def delete(id):
     except:
         return 'There was a problem deleting that text block'
 
+
 @app.route('/delete_consumer/<int:id>')
 def delete_consumer(id):
     consumer_block_to_delete = ConsumerBlock.query.get_or_404(id)
 
     try:
+        # Supprimer aussi l'objet Consumer associé
+        delete_consumer_object(id)
+
         db.session.delete(consumer_block_to_delete)
         db.session.commit()
         return redirect('/')
     except:
         return 'There was a problem deleting that consumer block'
 
+
 @app.route('/delete_producer/<int:id>')
 def delete_producer(id):
     producer_block_to_delete = ProducerBlock.query.get_or_404(id)
 
     try:
+        # Obtenir l'index du producteur avant de le supprimer
+        producer_index = get_producer_index_by_id(id)
+
+        # Supprimer l'objet Producer associé
+        delete_producer_object(id)
+
+        # Supprimer le ProducerBlock
         db.session.delete(producer_block_to_delete)
         db.session.commit()
+
+        # Mettre à jour tous les consumers pour supprimer les valeurs du producteur supprimé
+        if producer_index >= 0:
+            update_all_consumers_for_deleted_producer(producer_index)
+
         return redirect('/')
-    except:
+    except Exception as e:
+        print(f"Erreur lors de la suppression du producteur : {str(e)}")
         return 'There was a problem deleting that producer block'
+
 
 @app.route('/update/<int:id>', methods=['GET', 'POST'])
 def update(id):
@@ -166,6 +491,7 @@ def update(id):
     else:
         return render_template('update.html', text_block=text_block)
 
+
 @app.route('/update_consumer/<int:id>', methods=['GET', 'POST'])
 def update_consumer(id):
     consumer_block = ConsumerBlock.query.get_or_404(id)
@@ -180,6 +506,7 @@ def update_consumer(id):
             return 'There was an issue updating your consumer block'
     else:
         return render_template('update_consumer.html', consumer_block=consumer_block)
+
 
 @app.route('/update_producer/<int:id>', methods=['GET', 'POST'])
 def update_producer(id):
@@ -196,16 +523,16 @@ def update_producer(id):
     else:
         return render_template('update_producer.html', producer_block=producer_block)
 
+
 def allowed_file(filename):
     return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+        filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 @app.route('/upload_consumer_file', methods=['POST'])
 def upload_consumer_file():
     cons_name = request.form.get('cons_name')
-    id = request.form.get('id')
-    priority = request.form.get('priority')
-    ratio = request.form.get('ratio')
+    consumer_id = request.form.get('id')
 
     # Check if the post request has the file part
     if 'file' not in request.files:
@@ -222,16 +549,32 @@ def upload_consumer_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        consumer = Consumer.Consumer(cons_name, cons_name, [0], [50], filepath)
-        cons_list.append(consumer)
+        # Récupérer l'objet Consumer existant
+        consumer_obj_record = ConsumerObject.query.filter_by(consumer_block_id=int(consumer_id)).first()
+        if consumer_obj_record:
+            consumer = consumer_obj_record.get_consumer_object()
+            if consumer:
+                # Utiliser la méthode read_consumption pour charger les données
+                consumer.read_consumption(filepath)
 
-        return jsonify({'success': True, 'message': 'File uploaded successfully'})
+                # Mettre à jour l'enregistrement
+                consumer_obj_record.file_path = filepath
+                consumer_obj_record.set_consumer_object(consumer)
+                consumer_obj_record.priority_list = json.dumps(consumer.priority_list)
+                consumer_obj_record.ratio_list = json.dumps(consumer.ratio_list)
+                db.session.commit()
+
+                return jsonify({'success': True, 'message': 'File uploaded successfully'})
+
+        return jsonify({'success': False, 'message': 'Consumer object not found'})
     else:
         return jsonify({'success': False, 'message': 'Invalid file type'})
+
 
 @app.route('/upload_producer_file', methods=['POST'])
 def upload_producer_file():
     prod_name = request.form.get('prod_name')
+    producer_id = request.form.get('id')
 
     # Check if the post request has the file part
     if 'file' not in request.files:
@@ -248,12 +591,25 @@ def upload_producer_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        producer = Producer.Producer(prod_name, 1234567901000, filepath)
-        prod_list.append(producer)
+        # Récupérer l'objet Producer existant
+        producer_obj_record = ProducerObject.query.filter_by(producer_block_id=int(producer_id)).first()
+        if producer_obj_record:
+            producer = producer_obj_record.get_producer_object()
+            if producer:
+                # Utiliser la méthode read_production pour charger les données
+                producer.read_production(filepath)
 
-        return jsonify({'success': True, 'message': 'File uploaded successfully', 'filename': filename})
+                # Mettre à jour l'enregistrement
+                producer_obj_record.file_path = filepath
+                producer_obj_record.set_producer_object(producer)
+                db.session.commit()
+
+                return jsonify({'success': True, 'message': 'File uploaded successfully', 'filename': filename})
+
+        return jsonify({'success': False, 'message': 'Producer object not found'})
     else:
-        return jsonify({'success': False, 'message': f'Invalid file type. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'})
+        return jsonify(
+            {'success': False, 'message': f'Invalid file type. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'})
 
 
 @app.route('/compute_repartition_keys', methods=['POST'])
@@ -266,6 +622,26 @@ def compute_repartition_keys():
     global stat_file_generated
 
     try:
+        # Récupérer le type de clés de répartition depuis le formulaire
+        key_type = request.form.get('cles', 'default')  # 'default' par défaut si non spécifié
+
+        # Mapping des valeurs du formulaire vers les stratégies
+        strategy_mapping = {
+            'default': Repartition.Strategy.DYNAMIC_BY_DEFAULT,
+            'dynamic': Repartition.Strategy.DYNAMIC,
+            'static': Repartition.Strategy.STATIC
+        }
+
+        # Récupérer la stratégie correspondante
+        strategy = strategy_mapping.get(key_type, Repartition.Strategy.DYNAMIC_BY_DEFAULT)
+
+        print(f"Type de clés sélectionné : {key_type}")
+        print(f"Stratégie utilisée : {strategy}")
+
+        # Récupérer les listes depuis SQLAlchemy
+        prod_list = get_prod_list()
+        cons_list = get_cons_list()
+
         # Vérifier qu'il y a des producteurs et consommateurs
         if not prod_list:
             return jsonify({'success': False, 'message': 'Aucun producteur ajouté'})
@@ -273,26 +649,9 @@ def compute_repartition_keys():
         if not cons_list:
             return jsonify({'success': False, 'message': 'Aucun consommateur ajouté'})
 
-        # Get all information for test
-        # prod_list.append(
-        #     Producer.Producer('Prod1', 1234567901000,
-        #                       app.config['UPLOAD_FOLDER'] + 'Simu_Prod_Enerev_100.csv'))
-        #
-        # cons_list.append(Consumer.Consumer('Parking_Harmony1','Parking_Harmony1',[ 0 ], [ 50 ],
-        #                                    app.config['UPLOAD_FOLDER'] + 'Parking_Harmony1_Conso_202312_202412_V1.csv'))
-        # cons_list.append(Consumer.Consumer('Parking_Harmony2','Parking_Harmony2',[ 0 ], [ 50 ],
-        #                                    app.config['UPLOAD_FOLDER'] + 'Parking_Harmony2_Conso_202312_202412_V5.csv'))
-        # cons_list.append(Consumer.Consumer('Particuliers', 'Particuliers', [1], [100],
-        #                                    app.config['UPLOAD_FOLDER'] + 'Simu_50_particuliers.csv'))
-        # cons_list.append(Consumer.Consumer('PtiteEchoppe', 'PtiteEchoppe', [2], [50],
-        #                                    app.config['UPLOAD_FOLDER'] + 'Simu_PtiteEchoppe.csv'))
-        # cons_list.append(Consumer.Consumer('Azimut', 'Azimut', [2], [50],
-        #                                    app.config['UPLOAD_FOLDER'] + 'Simu_Azimut.csv'))
-
-        # End test
-
         rep = Repartition.Repartition()
-        rep.build_rep(prod_list, cons_list, Repartition.Strategy.DYNAMIC_BY_DEFAULT)
+        # Utiliser la stratégie sélectionnée au lieu de DYNAMIC_BY_DEFAULT
+        rep.build_rep(prod_list, cons_list, strategy)
         rep.write_repartition_key(prod_list, cons_list, EXPORT_FOLDER, True)
 
         stat_file_list = rep.generate_statistics(prod_list, cons_list, EXPORT_FOLDER)
@@ -316,7 +675,7 @@ def compute_repartition_keys():
 
         return jsonify({
             'success': True,
-            'message': 'Calcul des clés de répartition terminé avec succès',
+            'message': f'Calcul des clés de répartition terminé avec succès (Stratégie: {key_type})',
             'indicators': {
                 'auto_consumption_rate': round(auto_consumption_rate, 2),
                 'auto_production_rate_global': round(auto_production_rate_global, 2),
@@ -334,8 +693,6 @@ def chart_data():
     global stat_file_generated
 
     res = "jour"
-
-    # compute_repartition_keys()
 
     # Créer votre graphique
     if stat_file_generated:
