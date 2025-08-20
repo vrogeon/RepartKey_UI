@@ -1,120 +1,153 @@
 import pandas as pd
 import numpy as np
-
-import matplotlib.pyplot as plt
 import plotly.express as px
-from math import sqrt
-
 import datetime as dt
+import os
 
-def generate_graph(file,
-                  sep,
-                  group = False,
-                  resolution = 'hour'): # Resolution can be 'hour', 'day' or 'month'
-    df = pd.read_csv(file, sep=sep)
+def generate_graph(file, sep, group=False, resolution='hour'):
+    """
+    Génère un graphique à partir d'un fichier CSV
+    """
+    try:
+        print(f"Lecture du fichier: {file}")
+        
+        # Lire le fichier CSV avec des options de parsing robustes
+        df = pd.read_csv(file, sep=sep, quotechar='"', skipinitialspace=True)
+        
+        # Nettoyer les noms de colonnes (supprimer les \n et espaces)
+        df.columns = [col.replace('\n', '').replace('"', '').strip() for col in df.columns]
+        
+        print(f"Fichier lu avec succès. Colonnes: {df.columns.tolist()}")
+        print(f"Nombre de lignes: {len(df)}")
+        
+        # Vérifier que les colonnes nécessaires existent
+        if 'Horodate' not in df.columns:
+            raise ValueError("La colonne 'Horodate' est manquante dans le fichier")
+            
+        # Set Horodate column to current year
+        if '.' in str(df['Horodate'].iloc[0]):
+            df['Horodate'] = pd.to_datetime('2025.' + df['Horodate'].astype(str), format='%Y.%d.%m. %H:%M')
+        elif '/' in str(df['Horodate'].iloc[0]):
+            df['Horodate'] = pd.to_datetime(df['Horodate'], format='%d/%m/%Y %H:%M')
+        else:
+            df['Horodate'] = pd.to_datetime(df['Horodate'], infer_datetime_format=True)
+        
+        print(f"Dates converties. Plage: {df['Horodate'].min()} à {df['Horodate'].max()}")
 
-    # Set Horodate column to current year
-    if '.' in  df['Horodate'].iloc[0]:
-        df['Horodate'] = pd.to_datetime('2025.' + df['Horodate'], format='%Y.%d.%m. %H:%M')
-    elif '/' in  df['Horodate'].iloc[0]:
-        df['Horodate'] = pd.to_datetime(df['Horodate'], format='%d/%m/%Y %H:%M')
+        # Convertir toutes les colonnes numériques (remplacer ',' par '.')
+        for col in df.columns[1:]:  # Ignorer la colonne Horodate
+            if df[col].dtype == 'object':  # Seulement pour les colonnes texte
+                # Nettoyer et convertir
+                df[col] = df[col].astype(str).str.replace(',', '.').str.replace('"', '')
+                try:
+                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+                except:
+                    print(f"Attention: impossible de convertir la colonne {col} en numérique")
 
-    # Replace ',' by '.' for all columns except first one which is Horodate
-    for col in df.columns[1:]:
-        df[col] = df[col].astype(str).str.replace(',','.').astype(float)
+        print(f"Colonnes après nettoyage: {df.columns.tolist()}")
 
-    df.drop(['auto_cons_rate'],axis=1, inplace=True)
+        # Supprimer la colonne auto_cons_rate si elle existe
+        auto_cons_rate_cols = [col for col in df.columns if 'auto_cons_rate' in col]
+        if auto_cons_rate_cols:
+            df.drop(auto_cons_rate_cols, axis=1, inplace=True)
+            print(f"Colonnes auto_cons_rate supprimées: {auto_cons_rate_cols}")
 
-    # Group by type of consumers
-    if group:
-        df['Parking_Harmony'] = df['Parking_Harmony1\nauto_cons'] \
-                                + df['Parking_Harmony2\nauto_cons']
-        df.drop(['Parking_Harmony1\nauto_cons','Parking_Harmony2\nauto_cons'],
-                axis=1, inplace=True)
+        # Identifier les colonnes d'autoconsommation (contiennent 'auto_cons')
+        auto_cons_cols = [col for col in df.columns if 'auto_cons' in col and col != 'Horodate']
+        
+        if not auto_cons_cols:
+            raise ValueError("Aucune colonne d'autoconsommation trouvée")
+            
+        print(f"Colonnes d'autoconsommation trouvées: {auto_cons_cols}")
 
-        df['ParvisDuBreuil'] = df['1ParvisDuBreuil\nauto_cons'] \
-                                + df['2ParvisDuBreuil\nauto_cons'] \
-                                + df['3ParvisDuBreuil\nauto_cons']
-        df.drop(['1ParvisDuBreuil\nauto_cons','2ParvisDuBreuil\nauto_cons','3ParvisDuBreuil\nauto_cons'],
-                axis=1, inplace=True)
+        # Group by type of consumers si demandé
+        if group:
+            # Grouper les colonnes Parking_Harmony
+            harmony_cols = [col for col in auto_cons_cols if 'Parking_Harmony' in col]
+            if len(harmony_cols) >= 2:
+                df['Parking_Harmony_total'] = df[harmony_cols].sum(axis=1)
+                df.drop(harmony_cols, axis=1, inplace=True)
+                auto_cons_cols = [col for col in df.columns if 'auto_cons' in col and col != 'Horodate']
+                print(f"Colonnes groupées. Nouvelles colonnes: {auto_cons_cols}")
 
-        df['ParvisDeLaBievre'] = df['2ParvisDeLaBievre\nauto_cons'] \
-                                + df['3ParvisDeLaBievre\nauto_cons'] \
-                                + df['5ParvisDeLaBievre\nauto_cons']
-        df.drop(['2ParvisDeLaBievre\nauto_cons','3ParvisDeLaBievre\nauto_cons','5ParvisDeLaBievre\nauto_cons'],
-                axis=1, inplace=True)
+        # Identifier la colonne de production (probablement la première après Horodate)
+        prod_col = None
+        for col in df.columns[1:]:
+            if col not in auto_cons_cols:
+                prod_col = col
+                break
+                
+        if prod_col:
+            print(f"Colonne de production identifiée: {prod_col}")
+            # Calculer la production restante
+            df['Production_restante'] = df[prod_col] - df[auto_cons_cols].sum(axis=1)
+            auto_cons_cols.append('Production_restante')
 
-    # Add last column with contain difference between production and all auto_consumption
-    df['_Production restante'] = df.iloc[:,1] - df.iloc[:,2:].sum(axis=1)
+        # Préparer les données pour le graphique en aires empilées
+        area_data = []
+        
+        for col in auto_cons_cols:
+            for idx, row in df.iterrows():
+                area_data.append({
+                    'Horodate': row['Horodate'],
+                    'auto_cons': row[col],
+                    'id_cons': col.replace('auto_cons', '').replace('_', ' ').strip()
+                })
 
-    # Add auto_cons value on the same column and add another column for cons id
-    list_df = list()
-    area = pd.DataFrame()
-    for index, col in enumerate(df.columns[2:]):
-        list_df.append(pd.DataFrame())
+        area = pd.DataFrame(area_data)
+        
+        if area.empty:
+            raise ValueError("Aucune donnée d'autoconsommation trouvée après transformation")
 
-        list_df[index]['Horodate'] = df['Horodate']
-        list_df[index]['auto_cons'] = df[col]
-        list_df[index]['id_cons'] = df.columns[index+2].replace('\nauto_cons','')
-        area = pd.concat([area,list_df[index]])
+        print(f"Données transformées: {len(area)} lignes, consommateurs: {area['id_cons'].unique()}")
 
-    # Get day and month values
-    area['hour'] = area['Horodate'].dt.hour
-    area['day'] = area['Horodate'].dt.day
-    area['month'] = area['Horodate'].dt.month
-    area['year'] = area['Horodate'].dt.year
+        # Ajouter les colonnes de temps
+        area['hour'] = area['Horodate'].dt.hour
+        area['day'] = area['Horodate'].dt.day
+        area['month'] = area['Horodate'].dt.month
+        area['year'] = area['Horodate'].dt.year
 
-    # Create pivot table to summarize consumption
-    if resolution == 'mois':
-        piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'month'], aggfunc='sum').reset_index()
-        piv['year'] = piv['year'].astype(str)
-        piv['month'] = piv['month'].astype(str)
-        piv['date'] = pd.to_datetime(piv['year'] + '.' + piv['month'], format='%Y.%m')
-    elif resolution == 'jour':
-        piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'year', 'month', 'day'], aggfunc='sum').reset_index()
-        piv['year'] = piv['year'].astype(str)
-        piv['month'], piv['day'] = piv['month'].astype(str), piv['day'].astype(str)
-        piv['date'] = pd.to_datetime(piv['year'] + '.' + piv['month'] + '.' + piv['day'], format='%Y.%m.%d')
-    else:
-        piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'month', 'day', 'hour'], aggfunc='sum').reset_index()
-        piv['year'] = piv['year'].astype(str)
-        piv['month'], piv['day'], piv['hour'] = piv['month'].astype(str), piv['day'].astype(str), piv['hour'].astype(str)
-        piv['date'] = pd.to_datetime(piv['year'] + '.' + piv['month'] + '.' + piv['day'] + '.' + piv['hour'], format='%Y.%m.%d.%H')
+        # Créer le tableau pivot selon la résolution
+        if resolution == 'mois':
+            piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'year', 'month'], aggfunc='sum').reset_index()
+            piv['date'] = pd.to_datetime(piv[['year', 'month']].assign(day=1))
+        elif resolution == 'jour':
+            piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'year', 'month', 'day'], aggfunc='sum').reset_index()
+            piv['date'] = pd.to_datetime(piv[['year', 'month', 'day']])
+        else:  # hour
+            piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'year', 'month', 'day', 'hour'], aggfunc='sum').reset_index()
+            piv['date'] = pd.to_datetime(piv[['year', 'month', 'day', 'hour']])
 
-    fig = px.area(piv,
-                  x='date',
-                  y='auto_cons',
-                  color='id_cons',
-                  title='Profil d\'autoconsommation par consommateur cumulé par '+ resolution,
-                  labels={'date': 'Date', 'auto_cons': 'Autoconsommation (kWh)'})
+        print(f"Données pivotées: {len(piv)} lignes")
 
-    if resolution == 'jour':
-        fig.update_xaxes(
-            range=['2025-01-01', '2025-12-31'],
-            dtick='M1',  # Un trait par mois
-            tickformat='%d %B',  # Format d'affichage des dates
-            minor=dict(
-                dtick='D1',  # Traits mineurs tous les jours
-                showgrid=True,  # Afficher le quadrillage mineur
-                gridcolor='lightgray',  # Couleur du quadrillage des jours
-                gridwidth=0.5,  # Épaisseur des lignes de quadrillage
+        # Créer le graphique
+        fig = px.area(piv,
+                      x='date',
+                      y='auto_cons',
+                      color='id_cons',
+                      title=f'Autoconsommation par consommateur - {resolution}',
+                      labels={'date': 'Date', 'auto_cons': 'Autoconsommation (kWh)', 'id_cons': 'Consommateur'})
+
+        # Configuration de l'axe des X
+        if resolution == 'jour':
+            fig.update_xaxes(
+                dtick='M1',
+                tickformat='%B',
+                showgrid=True,
+                gridcolor='lightgray'
             )
-        )
-    else:
-        fig.update_xaxes(
-            range=['2025-01-01', '2025-12-31'],
-            dtick='M1',  # Un trait par mois
-            tickformat='%B'  # Format d'affichage des dates
-        )
+        else:
+            fig.update_xaxes(
+                showgrid=True,
+                gridcolor='gray',
+                gridwidth=1
+            )
 
-    # Optionnel : personnaliser le quadrillage principal (mois)
-    fig.update_xaxes(
-        showgrid=True,
-        gridcolor='gray',
-        gridwidth=1
-    )
+        print("Graphique généré avec succès")
+        return fig
 
-    # fig.show()
-
-    return fig
-
+    except Exception as e:
+        print(f"Erreur dans generate_graph: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise

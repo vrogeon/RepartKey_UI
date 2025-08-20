@@ -340,7 +340,7 @@ html {
     </div>
 </div>
 
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
 <script>
     // Système de redimensionnement du panneau latéral
     let isResizing = false;
@@ -402,7 +402,7 @@ html {
 
         // Redimensionner le graphique
         setTimeout(() => {
-            if (window.Plotly) {
+            if (window.Plotly && document.getElementById('chart').hasChildNodes()) {
                 Plotly.Plots.resize('chart');
             }
         }, 50);
@@ -551,6 +551,7 @@ html {
 
         return false;
     }
+
     function computeRepartitionKeys(event, form) {
         event.preventDefault();
 
@@ -600,22 +601,84 @@ html {
         return false;
     }
 
-    // Fonction pour charger le graphique
+    // Fonction pour charger le graphique - VERSION AMÉLIORÉE
     function loadChart() {
-        fetch('/data')
-            .then(response => response.json())
-            .then(fig => {
-                Plotly.newPlot('chart', fig.data, fig.layout, {responsive: true});
-
-                // Mettre à jour les indicateurs si disponibles dans la réponse
-                if (fig.indicators) {
-                    document.getElementById('auto_consumption_rate').textContent = fig.indicators.auto_consumption_rate + '%';
-                    document.getElementById('auto_production_rate_global').textContent = fig.indicators.auto_production_rate_global + '%';
-                    document.getElementById('coverage_rate').textContent = fig.indicators.coverage_rate + '%';
+        console.log('Chargement du graphique...');
+        
+        // Construire l'URL correcte
+        const currentPath = window.location.pathname; // "/RepartElec.fr"
+        // Ajouter /data à la fin du pathname actuel
+        const dataUrl = window.location.origin + currentPath + '/data';
+        
+        console.log('URL de données:', dataUrl);
+        console.log('Current pathname:', currentPath);
+        
+        fetch(dataUrl)
+            .then(response => {
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
+                return response.json();
+            })
+            .then(fig => {
+                console.log('Données reçues:', fig);
+                
+                if (!fig.data || fig.data.length === 0) {
+                    console.log('Aucune donnée de graphique reçue');
+                    const emptyLayout = {
+                        title: 'Aucune donnée disponible',
+                        xaxis: {title: 'Date'},
+                        yaxis: {title: 'Autoconsommation (kWh)'},
+                        annotations: [{
+                            x: 0.5, y: 0.5,
+                            xref: 'paper', yref: 'paper',
+                            text: 'Veuillez calculer les clés de répartition',
+                            showarrow: false,
+                            font: {size: 16, color: '#666'},
+                            xanchor: 'center', yanchor: 'middle'
+                        }]
+                    };
+                    Plotly.newPlot('chart', [], emptyLayout, {responsive: true});
+                    return;
+                }
+                
+                const config = {
+                    responsive: true,
+                    displayModeBar: true,
+                    displaylogo: false,
+                    modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
+                };
+                
+                const layout = {
+                    ...fig.layout,
+                    autosize: true,
+                    margin: { l: 50, r: 50, t: 50, b: 50 },
+                    font: { size: 12 }
+                };
+                
+                console.log(`Création du graphique avec ${fig.data.length} traces`);
+                
+                Plotly.newPlot('chart', fig.data, layout, config)
+                    .then(() => {
+                        console.log('Graphique créé avec succès');
+                        
+                        if (fig.indicators) {
+                            document.getElementById('auto_consumption_rate').textContent = fig.indicators.auto_consumption_rate + '%';
+                            document.getElementById('auto_production_rate_global').textContent = fig.indicators.auto_production_rate_global + '%';
+                            document.getElementById('coverage_rate').textContent = fig.indicators.coverage_rate + '%';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erreur lors de la création du graphique Plotly:', error);
+                        showMessage('Erreur lors de l\'affichage du graphique', 'error');
+                    });
             })
             .catch(error => {
                 console.error('Erreur lors du chargement des données:', error);
+                console.error('Détails de l\'erreur:', error.message);
+                showMessage('Erreur lors du chargement des données du graphique', 'error');
             });
     }
 
@@ -699,12 +762,20 @@ html {
 
     // Initialiser l'état des champs au chargement de la page
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM chargé, initialisation...');
         handleKeyTypeChange();
-        initializeSidebar(); // Initialiser le système de redimensionnement
+        initializeSidebar();
         loadChart(); // Charger le graphique au démarrage
     });
 
-    loadChart(); // Chargement initial du graphique
+    // Gestion du redimensionnement de la fenêtre
+    window.addEventListener('resize', function() {
+        if (window.Plotly && document.getElementById('chart').hasChildNodes()) {
+            setTimeout(() => {
+                Plotly.Plots.resize('chart');
+            }, 100);
+        }
+    });
 </script>
 
 {% endblock %}

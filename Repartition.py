@@ -313,7 +313,7 @@ class Repartition:
     # This function create files for repartition keys
     def write_repartition_key(self, prod_list, cons_list, folder, debug_info = False):
         for index_prod, prod in enumerate(prod_list):
-            file = folder + str(prod.prm) + '.csv'
+            file = folder + '/' + str(prod.prm) + '.csv'
             with open(file, 'w', newline='') as csvfile:
                 keywriter = csv.writer(csvfile,delimiter=';')
 
@@ -389,7 +389,7 @@ class Repartition:
         file_list = []
 
         for index_prod, prod in enumerate(prod_list):
-            file = folder + str(prod.prm) + '_statistics.csv'
+            file = folder + '/' + str(prod.prm) + '_statistics.csv'
             file_list.append(file)
             with open(file, 'w', newline='') as csvfile:
                 keywriter = csv.writer(csvfile,delimiter=';')
@@ -458,7 +458,7 @@ class Repartition:
                                 add_auto_prod_rate = True,
                                 add_auto_cons_mois = True):
         for index_prod, prod in enumerate(prod_list):
-            file = folder + str(prod.prm) + '_monthly_report.csv'
+            file = folder + '/' + str(prod.prm) + '_monthly_report.csv'
             with open(file, 'w', newline='') as csvfile:
                 keywriter = csv.writer(csvfile,delimiter=';')
 

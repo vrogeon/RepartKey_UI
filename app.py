@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
+import sys
 import json
 import pickle
 
@@ -17,13 +18,65 @@ import Graph
 import plotly.graph_objects as go
 import plotly.utils
 
+# Configuration pour l'environnement de production
+def setup_paths():
+    """Configure les chemins pour l'environnement de production"""
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    
+    # Utiliser os.path.join pour être compatible avec tous les OS
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'Courbes')
+    EXPORT_FOLDER = os.path.join(BASE_DIR, 'Export')
+    
+    # Normaliser les chemins pour éviter les problèmes de séparateurs
+    UPLOAD_FOLDER = os.path.normpath(UPLOAD_FOLDER)
+    EXPORT_FOLDER = os.path.normpath(EXPORT_FOLDER)
+    
+    # Créer les dossiers s'ils n'existent pas avec permissions explicites
+    try:
+        if not os.path.exists(UPLOAD_FOLDER):
+            os.makedirs(UPLOAD_FOLDER, mode=0o755, exist_ok=True)
+            print(f"Upload folder created at: {UPLOAD_FOLDER}")
+        
+        if not os.path.exists(EXPORT_FOLDER):
+            os.makedirs(EXPORT_FOLDER, mode=0o755, exist_ok=True)
+            print(f"Export folder created at: {EXPORT_FOLDER}")
+            
+        # Vérifier que les dossiers existent vraiment
+        if os.path.exists(UPLOAD_FOLDER):
+            print(f"✓ Upload folder exists: {UPLOAD_FOLDER}")
+        else:
+            print(f"✗ Upload folder does not exist: {UPLOAD_FOLDER}")
+            
+        if os.path.exists(EXPORT_FOLDER):
+            print(f"✓ Export folder exists: {EXPORT_FOLDER}")
+        else:
+            print(f"✗ Export folder does not exist: {EXPORT_FOLDER}")
+            
+    except Exception as e:
+        print(f"Error creating directories: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    return UPLOAD_FOLDER, EXPORT_FOLDER
+
+# Initialiser les chemins
+UPLOAD_FOLDER, EXPORT_FOLDER = setup_paths()
+
+# Configuration de l'application
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///textblocks.db'
+
+# Database configuration - utiliser une base de données dans le répertoire de l'app
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(os.path.dirname(os.path.abspath(__file__)), "textblocks.db")}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limite à 16MB
+
+# Ajout d'une clé secrète (nécessaire pour Flask)
+app.secret_key = 'your-secret-key-change-this-in-production'  # Changez ceci par une vraie clé secrète
+
 db = SQLAlchemy(app)
 
-app.config['UPLOAD_FOLDER'] = 'C:\\Pro\\Git\\RepartKey_UI\\Courbes\\'
-EXPORT_FOLDER = 'C:\\Pro\\Git\\RepartKey_UI\\Export\\'
+# Extensions de fichiers autorisées
 ALLOWED_EXTENSIONS = {'csv'}
 
 auto_consumption_rate = 0
@@ -34,6 +87,47 @@ stat_file_list = []
 
 # Global variables used to manage interactions between different blocs
 stat_file_generated = False
+
+def check_permissions():
+    """Vérifie les permissions des dossiers"""
+    try:
+        # Normaliser les chemins
+        upload_path = os.path.normpath(UPLOAD_FOLDER)
+        export_path = os.path.normpath(EXPORT_FOLDER)
+        
+        print(f"Checking permissions for:")
+        print(f"  Upload folder: {upload_path}")
+        print(f"  Export folder: {export_path}")
+        
+        # Créer les dossiers s'ils n'existent pas
+        if not os.path.exists(upload_path):
+            os.makedirs(upload_path, mode=0o755, exist_ok=True)
+            print(f"Created upload folder: {upload_path}")
+            
+        if not os.path.exists(export_path):
+            os.makedirs(export_path, mode=0o755, exist_ok=True)
+            print(f"Created export folder: {export_path}")
+        
+        # Test d'écriture dans le dossier upload
+        test_file = os.path.join(upload_path, 'test.txt')
+        with open(test_file, 'w') as f:
+            f.write('test')
+        os.remove(test_file)
+        print("✓ Upload folder is writable")
+        
+        # Test d'écriture dans le dossier export
+        test_file = os.path.join(export_path, 'test.txt')
+        with open(test_file, 'w') as f:
+            f.write('test')
+        os.remove(test_file)
+        print("✓ Export folder is writable")
+        
+        return True
+    except Exception as e:
+        print(f"Permission error: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 
 class TextBlock(db.Model):
@@ -276,6 +370,33 @@ def index():
     producer_blocks = ProducerBlock.query.order_by(ProducerBlock.id).all()
     return render_template('index.html', text_blocks=text_blocks, consumer_blocks=consumer_blocks,
                            producer_blocks=producer_blocks)
+
+
+@app.route('/debug_info')
+def debug_info():
+    """Route pour vérifier la configuration sur le serveur"""
+    # Normaliser les chemins
+    upload_path = os.path.normpath(app.config.get('UPLOAD_FOLDER', ''))
+    export_path = os.path.normpath(EXPORT_FOLDER)
+    
+    info = {
+        'current_directory': os.getcwd(),
+        'upload_folder': upload_path,
+        'upload_folder_exists': os.path.exists(upload_path),
+        'upload_folder_writable': os.access(upload_path, os.W_OK) if os.path.exists(upload_path) else False,
+        'export_folder': export_path,
+        'export_folder_exists': os.path.exists(export_path),
+        'export_folder_writable': os.access(export_path, os.W_OK) if os.path.exists(export_path) else False,
+        'python_version': sys.version,
+        'app_directory': os.path.dirname(os.path.abspath(__file__)),
+        'permissions_check': check_permissions(),
+        'path_separator': os.sep,
+        'original_upload_config': str(app.config.get('UPLOAD_FOLDER')),
+        'normalized_upload': upload_path,
+        'normalized_export': export_path
+    }
+    
+    return jsonify(info)
 
 
 @app.route('/add', methods=['POST'])
@@ -531,85 +652,126 @@ def allowed_file(filename):
 
 @app.route('/upload_consumer_file', methods=['POST'])
 def upload_consumer_file():
-    cons_name = request.form.get('cons_name')
-    consumer_id = request.form.get('id')
+    try:
+        cons_name = request.form.get('cons_name')
+        consumer_id = request.form.get('id')
 
-    # Check if the post request has the file part
-    if 'file' not in request.files:
-        return jsonify({'success': False, 'message': 'No file selected'})
+        # Check if the post request has the file part
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': 'No file selected'})
 
-    file = request.files['file']
+        file = request.files['file']
 
-    # If user does not select file, browser submits empty part without filename
-    if file.filename == '':
-        return jsonify({'success': False, 'message': 'No file selected'})
+        # If user does not select file, browser submits empty part without filename
+        if file.filename == '':
+            return jsonify({'success': False, 'message': 'No file selected'})
 
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            
+            # Vérifier que le dossier d'upload existe
+            if not os.path.exists(app.config['UPLOAD_FOLDER']):
+                os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+            
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            
+            # Sauvegarder le fichier
+            file.save(filepath)
+            
+            # Vérifier que le fichier a été sauvegardé
+            if not os.path.exists(filepath):
+                return jsonify({'success': False, 'message': 'File could not be saved'})
 
-        # Récupérer l'objet Consumer existant
-        consumer_obj_record = ConsumerObject.query.filter_by(consumer_block_id=int(consumer_id)).first()
-        if consumer_obj_record:
-            consumer = consumer_obj_record.get_consumer_object()
-            if consumer:
-                # Utiliser la méthode read_consumption pour charger les données
-                consumer.read_consumption(filepath)
+            # Récupérer l'objet Consumer existant
+            consumer_obj_record = ConsumerObject.query.filter_by(consumer_block_id=int(consumer_id)).first()
+            if consumer_obj_record:
+                consumer = consumer_obj_record.get_consumer_object()
+                if consumer:
+                    # Utiliser la méthode read_consumption pour charger les données
+                    consumer.read_consumption(filepath)
 
-                # Mettre à jour l'enregistrement
-                consumer_obj_record.file_path = filepath
-                consumer_obj_record.set_consumer_object(consumer)
-                consumer_obj_record.priority_list = json.dumps(consumer.priority_list)
-                consumer_obj_record.ratio_list = json.dumps(consumer.ratio_list)
-                db.session.commit()
+                    # Mettre à jour l'enregistrement
+                    consumer_obj_record.file_path = filepath
+                    consumer_obj_record.set_consumer_object(consumer)
+                    consumer_obj_record.priority_list = json.dumps(consumer.priority_list)
+                    consumer_obj_record.ratio_list = json.dumps(consumer.ratio_list)
+                    db.session.commit()
 
-                return jsonify({'success': True, 'message': 'File uploaded successfully'})
-
-        return jsonify({'success': False, 'message': 'Consumer object not found'})
-    else:
-        return jsonify({'success': False, 'message': 'Invalid file type'})
+                    return jsonify({'success': True, 'message': 'File uploaded successfully'})
+                else:
+                    return jsonify({'success': False, 'message': 'Consumer object could not be retrieved'})
+            else:
+                return jsonify({'success': False, 'message': 'Consumer object not found'})
+        else:
+            return jsonify({'success': False, 'message': 'Invalid file type'})
+            
+    except Exception as e:
+        # Log l'erreur complète pour le debugging
+        print(f"Error in upload_consumer_file: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'})
 
 
 @app.route('/upload_producer_file', methods=['POST'])
 def upload_producer_file():
-    prod_name = request.form.get('prod_name')
-    producer_id = request.form.get('id')
+    try:
+        prod_name = request.form.get('prod_name')
+        producer_id = request.form.get('id')
 
-    # Check if the post request has the file part
-    if 'file' not in request.files:
-        return jsonify({'success': False, 'message': 'No file selected'})
+        # Check if the post request has the file part
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': 'No file selected'})
 
-    file = request.files['file']
+        file = request.files['file']
 
-    # If user does not select file, browser submits empty part without filename
-    if file.filename == '':
-        return jsonify({'success': False, 'message': 'No file selected'})
+        # If user does not select file, browser submits empty part without filename
+        if file.filename == '':
+            return jsonify({'success': False, 'message': 'No file selected'})
 
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            
+            # Vérifier que le dossier d'upload existe
+            if not os.path.exists(app.config['UPLOAD_FOLDER']):
+                os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+            
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            
+            # Sauvegarder le fichier
+            file.save(filepath)
+            
+            # Vérifier que le fichier a été sauvegardé
+            if not os.path.exists(filepath):
+                return jsonify({'success': False, 'message': 'File could not be saved'})
 
-        # Récupérer l'objet Producer existant
-        producer_obj_record = ProducerObject.query.filter_by(producer_block_id=int(producer_id)).first()
-        if producer_obj_record:
-            producer = producer_obj_record.get_producer_object()
-            if producer:
-                # Utiliser la méthode read_production pour charger les données
-                producer.read_production(filepath)
+            # Récupérer l'objet Producer existant
+            producer_obj_record = ProducerObject.query.filter_by(producer_block_id=int(producer_id)).first()
+            if producer_obj_record:
+                producer = producer_obj_record.get_producer_object()
+                if producer:
+                    # Utiliser la méthode read_production pour charger les données
+                    producer.read_production(filepath)
 
-                # Mettre à jour l'enregistrement
-                producer_obj_record.file_path = filepath
-                producer_obj_record.set_producer_object(producer)
-                db.session.commit()
+                    # Mettre à jour l'enregistrement
+                    producer_obj_record.file_path = filepath
+                    producer_obj_record.set_producer_object(producer)
+                    db.session.commit()
 
-                return jsonify({'success': True, 'message': 'File uploaded successfully', 'filename': filename})
-
-        return jsonify({'success': False, 'message': 'Producer object not found'})
-    else:
-        return jsonify(
-            {'success': False, 'message': f'Invalid file type. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'})
+                    return jsonify({'success': True, 'message': 'File uploaded successfully', 'filename': filename})
+                else:
+                    return jsonify({'success': False, 'message': 'Producer object could not be retrieved'})
+            else:
+                return jsonify({'success': False, 'message': 'Producer object not found'})
+        else:
+            return jsonify({'success': False, 'message': f'Invalid file type. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'})
+            
+    except Exception as e:
+        # Log l'erreur complète pour le debugging
+        print(f"Error in upload_producer_file: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'})
 
 
 @app.route('/compute_repartition_keys', methods=['POST'])
@@ -685,72 +847,121 @@ def compute_repartition_keys():
 
     except Exception as e:
         print(f"Erreur lors du calcul : {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'message': f'Erreur lors du calcul : {str(e)}'})
 
 
 @app.route('/data')
 def chart_data():
-    global stat_file_generated
+    global stat_file_generated, stat_file_list, auto_consumption_rate, auto_production_rate_global, coverage_rate
 
     res = "jour"
 
-    # Créer votre graphique
-    if stat_file_generated:
-        fig = go.Figure()
+    try:
+        # Créer votre graphique
+        if stat_file_generated and stat_file_list and len(stat_file_list) > 0:
+            print(f"Génération du graphique à partir de: {stat_file_list[0]}")
+            
+            # Vérifier que le fichier existe
+            if not os.path.exists(stat_file_list[0]):
+                raise FileNotFoundError(f"Le fichier de statistiques {stat_file_list[0]} n'existe pas")
+            
+            fig = Graph.generate_graph(stat_file_list[0], ';', group=False, resolution=res)
 
-        fig = Graph.generate_graph(stat_file_list[0],
-                                   ';',
-                                   group=False,
-                                   resolution=res)
+            if not hasattr(fig, 'data') or len(fig.data) == 0:
+                raise ValueError("Le graphique généré ne contient aucune donnée")
 
-        fig.update_layout(
-            autosize=True,
-            # Forcer la configuration responsive
-            margin=dict(autoexpand=True)
-        )
+            fig.update_layout(
+                autosize=True,
+                margin=dict(autoexpand=True)
+            )
 
-        # Version ultra-simple
-        traces = []
-        for trace in fig.data:
-            traces.append({
-                'type': 'scatter',
-                'mode': 'lines',
-                'fill': 'tonexty' if len(traces) > 0 else 'tozeroy',
-                'stackgroup': 'one',
-                'name': trace.name,
-                'x': [str(x) for x in trace.x],
-                'y': [float(str(y)) for y in trace.y]  # Double conversion pour être sûr
-            })
-
-        result = {
-            'data': traces,
-            'layout': {
-                'title': 'Autoconsommation cumulée par ' + res,
-                'xaxis': {'title': 'Date'},
-                'yaxis': {'title': 'Autoconsommation (kWh)'},
-                'legend': {
-                    'orientation': 'h',  # Orientation horizontale
-                    'x': 0.5,  # Centré horizontalement
-                    'xanchor': 'center',  # Ancrage au centre
-                    'y': -0.2,  # Position en bas du graphique
-                    'yanchor': 'top'  # Ancrage par le haut de la légende
+            # Convertir les données du graphique
+            traces = []
+            for trace in fig.data:
+                trace_data = {
+                    'type': 'scatter',
+                    'mode': 'lines',
+                    'fill': 'tonexty' if len(traces) > 0 else 'tozeroy',
+                    'stackgroup': 'one',
+                    'name': trace.name,
+                    'x': [str(x) for x in trace.x],
+                    'y': [float(str(y)) if str(y) != 'nan' else 0 for y in trace.y]
                 }
-            },
-            'indicators': {
-                'auto_consumption_rate': auto_consumption_rate,
-                'auto_production_rate_global': auto_production_rate_global,
-                'coverage_rate': coverage_rate
+                traces.append(trace_data)
+                print(f"Trace ajoutée: {trace.name} avec {len(trace.x)} points")
+
+            result = {
+                'data': traces,
+                'layout': {
+                    'title': 'Autoconsommation cumulée par ' + res,
+                    'xaxis': {'title': 'Date'},
+                    'yaxis': {'title': 'Autoconsommation (kWh)'},
+                    'legend': {
+                        'orientation': 'h',
+                        'x': 0.5,
+                        'xanchor': 'center',
+                        'y': -0.2,
+                        'yanchor': 'top'
+                    }
+                },
+                'indicators': {
+                    'auto_consumption_rate': round(auto_consumption_rate, 2),
+                    'auto_production_rate_global': round(auto_production_rate_global, 2),
+                    'coverage_rate': round(coverage_rate, 2)
+                }
             }
-        }
 
-        return jsonify(result)
+            print(f"Graphique créé avec {len(traces)} traces")
+            return jsonify(result)
 
-    else:
-        # Retourner un graphique vide par défaut
+        else:
+            print("Aucune donnée de statistiques disponible")
+            # Retourner un graphique vide par défaut
+            result = {
+                'data': [],
+                'layout': {
+                    'title': 'Aucune donnée disponible - Veuillez calculer les clés de répartition',
+                    'xaxis': {'title': 'Date'},
+                    'yaxis': {'title': 'Autoconsommation (kWh)'},
+                    'legend': {
+                        'orientation': 'h',
+                        'x': 0.5,
+                        'xanchor': 'center',
+                        'y': -0.2,
+                        'yanchor': 'top'
+                    },
+                    'annotations': [{
+                        'x': 0.5,
+                        'y': 0.5,
+                        'xref': 'paper',
+                        'yref': 'paper',
+                        'text': 'Cliquez sur "Calculer les clés de répartitions" pour générer le graphique',
+                        'showarrow': False,
+                        'font': {'size': 16, 'color': '#666'},
+                        'xanchor': 'center',
+                        'yanchor': 'middle'
+                    }]
+                },
+                'indicators': {
+                    'auto_consumption_rate': 0,
+                    'auto_production_rate_global': 0,
+                    'coverage_rate': 0
+                }
+            }
+            return jsonify(result)
+
+    except Exception as e:
+        print(f"Erreur lors de la génération du graphique : {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        # Retourner un graphique d'erreur
         result = {
             'data': [],
             'layout': {
-                'title': 'Aucune donnée disponible - Veuillez calculer les clés de répartition',
+                'title': 'Erreur lors de la génération du graphique',
                 'xaxis': {'title': 'Date'},
                 'yaxis': {'title': 'Autoconsommation (kWh)'},
                 'legend': {
@@ -760,15 +971,14 @@ def chart_data():
                     'y': -0.2,
                     'yanchor': 'top'
                 },
-                # Ajouter une annotation pour guider l'utilisateur
                 'annotations': [{
                     'x': 0.5,
                     'y': 0.5,
                     'xref': 'paper',
                     'yref': 'paper',
-                    'text': 'Cliquez sur "Calculer les clés de répartitions" pour générer le graphique',
+                    'text': f'Erreur: {str(e)}',
                     'showarrow': False,
-                    'font': {'size': 16, 'color': '#666'},
+                    'font': {'size': 14, 'color': '#d32f2f'},
                     'xanchor': 'center',
                     'yanchor': 'middle'
                 }]
@@ -779,9 +989,94 @@ def chart_data():
                 'coverage_rate': 0
             }
         }
-
         return jsonify(result)
 
+@app.route('/debug_graph')
+def debug_graph():
+    """Route pour déboguer les problèmes de graphiques"""
+    global stat_file_generated, stat_file_list
+    
+    debug_info = {
+        'stat_file_generated': stat_file_generated,
+        'stat_file_list': stat_file_list,
+        'stat_file_list_length': len(stat_file_list) if stat_file_list else 0,
+        'export_folder': EXPORT_FOLDER,
+        'export_folder_exists': os.path.exists(EXPORT_FOLDER),
+        'files_in_export': []
+    }
+    
+    # Lister les fichiers dans le dossier Export
+    try:
+        if os.path.exists(EXPORT_FOLDER):
+            files = os.listdir(EXPORT_FOLDER)
+            debug_info['files_in_export'] = files
+            
+            # Vérifier si le premier fichier de statistiques existe
+            if stat_file_list and len(stat_file_list) > 0:
+                first_stat_file = stat_file_list[0]
+                debug_info['first_stat_file'] = first_stat_file
+                debug_info['first_stat_file_exists'] = os.path.exists(first_stat_file)
+                
+                # Lire quelques lignes du fichier pour vérifier son contenu
+                if os.path.exists(first_stat_file):
+                    try:
+                        with open(first_stat_file, 'r') as f:
+                            lines = f.readlines()[:5]  # Lire les 5 premières lignes
+                        debug_info['first_stat_file_content'] = lines
+                        debug_info['first_stat_file_line_count'] = len(lines)
+                    except Exception as e:
+                        debug_info['first_stat_file_read_error'] = str(e)
+                        
+    except Exception as e:
+        debug_info['export_folder_error'] = str(e)
+    
+    # Tester la génération de graphique
+    try:
+        if stat_file_generated and stat_file_list and len(stat_file_list) > 0:
+            import Graph
+            fig = Graph.generate_graph(stat_file_list[0], ';', group=False, resolution='jour')
+            debug_info['graph_generation'] = 'SUCCESS'
+            debug_info['graph_data_length'] = len(fig.data) if hasattr(fig, 'data') else 0
+        else:
+            debug_info['graph_generation'] = 'SKIPPED - No data'
+    except Exception as e:
+        debug_info['graph_generation'] = f'ERROR: {str(e)}'
+        import traceback
+        debug_info['graph_error_traceback'] = traceback.format_exc()
+    
+    return jsonify(debug_info)
+    
+@app.route('/test_chart')
+def test_chart():
+    try:
+        import Graph
+        fig = Graph.generate_graph('/home/jumu2280/RepartElec.fr/Export/1234567901000_statistics.csv', ';', group=False, resolution='jour')
+        
+        traces = []
+        for trace in fig.data:
+            traces.append({
+                'type': 'scatter',
+                'mode': 'lines',
+                'fill': 'tonexty' if len(traces) > 0 else 'tozeroy',
+                'stackgroup': 'one',
+                'name': trace.name,
+                'x': [str(x) for x in trace.x],
+                'y': [float(str(y)) if str(y) != 'nan' else 0 for y in trace.y]
+            })
+        
+        return jsonify({
+            'success': True,
+            'traces_count': len(traces),
+            'first_trace_points': len(traces[0]['x']) if traces else 0
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
+# Vérifier les permissions au démarrage
 if __name__ == '__main__':
-    app.run(debug=False)
+    check_permissions()
+    # Pour le développement local
+    app.run(debug=True)
+else:
+    # Pour la production (cPanel)
+    check_permissions()
