@@ -1,0 +1,1 @@
+pip install Flask Flask-SQLAlchemy plotly pandas numpy matplotlib
