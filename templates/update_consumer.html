@@ -3,12 +3,62 @@
 {% block content %}
 <h1>Mise à jour consommateur</h1>
 
-<form action="/update_consumer/{{ consumer_block.id }}" method="POST">
+<form id="updateConsumerForm" method="POST">
     <div class="form-group">
         <label for="cons_name">Nom du consommateur</label>
         <input type="text" name="cons_name" id="cons_name" class="form-control" value="{{ consumer_block.cons_name }}" required>
     </div>
-    <button type="submit" class="btn btn-primary">Update</button>
-    <a href="/" class="btn">Cancel</a>
+    <button type="submit" class="btn btn-primary">Valider</button>
+    <button type="button" class="btn" onclick="goBack()">Annuler</button>
 </form>
+
+<script>
+    // Fonction pour obtenir le chemin de base de l'application
+    function getBasePath() {
+        const currentPath = window.location.pathname;
+        const pathParts = currentPath.split('/');
+        
+        const updateIndex = pathParts.findIndex(part => part === 'update_consumer');
+        
+        if (updateIndex > 0) {
+            return pathParts.slice(0, updateIndex).join('/');
+        }
+        
+        // Fallback: si on ne trouve pas "update_consumer", essayer de détecter autrement
+        if (currentPath.includes('/RepartElec/')) {
+            return '/RepartElec';
+        }
+        
+        return '';
+    }
+
+    // Fonction pour construire une URL complète
+    function buildUrl(endpoint) {
+        const base = getBasePath();
+        if (base === '') {
+            return endpoint;
+        }
+        return base + endpoint;
+    }
+
+    // Fonction pour retourner à la page principale
+    function goBack() {
+        const homeUrl = buildUrl('/');
+        console.log('Retour vers:', homeUrl);
+        window.location.href = homeUrl;
+    }
+
+    // Au chargement de la page, définir l'action du formulaire
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('updateConsumerForm');
+        const correctAction = buildUrl('/update_consumer/{{ consumer_block.id }}');
+        
+        console.log('Chemin actuel:', window.location.pathname);
+        console.log('Base path détecté:', getBasePath());
+        console.log('Action du formulaire définie à:', correctAction);
+        
+        // Définir l'action du formulaire avec le bon chemin
+        form.action = correctAction;
+    });
+</script>
 {% endblock %}

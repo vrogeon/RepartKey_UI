@@ -113,6 +113,99 @@ html {
     max-width: 80vw;
 }
 
+/* Styles pour les inputs file personnalisés */
+.custom-file-input {
+    display: none;
+}
+
+.custom-file-button {
+    display: inline-block;
+    padding: 4px 8px;
+    background-color: #007bff;
+    color: white;
+    border: 1px solid #007bff;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    text-align: center;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.custom-file-button:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+}
+
+.custom-file-button:active {
+    background-color: #004085;
+    border-color: #004085;
+}
+
+.file-status-display {
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    white-space: nowrap;
+    border: 1px solid;
+    flex: 1;
+    text-align: left;
+    min-width: 100px;
+    max-width: 140px; /* Largeur limitée */
+    overflow: hidden;
+    cursor: help; /* Indicateur que plus d'infos sont disponibles */
+    position: relative;
+}
+
+.file-status-has-file {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.file-status-no-file {
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+    color: #856404;
+}
+
+.file-upload-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Tooltip pour afficher le nom complet */
+.file-status-display[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-bottom: 5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Flèche du tooltip */
+.file-status-display[title]:hover::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: #333;
+    z-index: 1001;
+    margin-bottom: 1px;
+}
+
 .resize-handle {
     position: fixed;
     top: 0;
@@ -219,14 +312,36 @@ html {
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                                     <strong>{{ producer_block.prod_name }}</strong>
                                     <div>
-                                        <a href="/update_producer/{{ producer_block.id }}" class="btn btn-primary" style="margin-right: 5px; font-size: 12px; padding: 4px 8px;">Editer</a>
-                                        <a href="/delete_producer/{{ producer_block.id }}" class="btn btn-danger" style="font-size: 12px; padding: 4px 8px;">Supprimer</a>
+                                        <button onclick="editProducer({{ producer_block.id }})" class="btn btn-primary" style="margin-right: 5px; font-size: 12px; padding: 4px 8px;">Editer</button>
+                                        <button onclick="deleteProducer({{ producer_block.id }})" class="btn btn-danger" style="font-size: 12px; padding: 4px 8px;">Supprimer</button>
                                     </div>
                                 </div>
+                                
+                                <!-- Formulaire d'upload avec bouton personnalisé -->
                                 <form method="POST" action="{{ url_for('upload_producer_file') }}" enctype="multipart/form-data" style="margin-bottom: 10px;" id="form_producer_{{ producer_block.id }}">
                                     <input type="hidden" name="prod_name" value="{{ producer_block.prod_name }}">
                                     <input type="hidden" name="id" value="{{ producer_block.id }}">
-                                    <input type="file" name="file" id="file_producer_{{ producer_block.id }}" required style="margin-bottom: 5px;" onchange="uploadProducerFile(this.form);">
+                                    
+                                    <div class="file-upload-container">
+                                        <!-- Input file caché -->
+                                        <input type="file" name="file" id="file_producer_{{ producer_block.id }}" class="custom-file-input" onchange="handleProducerFileSelect(this, {{ producer_block.id }});" accept=".csv">
+                                        
+                                        <!-- Bouton personnalisé -->
+                                        <label for="file_producer_{{ producer_block.id }}" class="custom-file-button">
+                                            Choisir fichier
+                                        </label>
+                                        
+                                        <!-- Zone d'affichage du statut -->
+                                        <div id="status_producer_{{ producer_block.id }}" 
+                                             class="file-status-display {% if producer_block.has_file() %}file-status-has-file{% else %}file-status-no-file{% endif %}"
+                                             {% if producer_block.has_file() %}title="{{ producer_block.get_file_name() }}"{% endif %}>
+                                            {% if producer_block.has_file() %}
+                                                {{ producer_block.get_file_name() }}
+                                            {% else %}
+                                                Aucun fichier
+                                            {% endif %}
+                                        </div>
+                                    </div>
                                 </form>
                             </td>
                             {% endfor %}
@@ -238,16 +353,38 @@ html {
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                                     <strong>{{ consumer_block.cons_name }}</strong>
                                     <div>
-                                        <a href="/update_consumer/{{ consumer_block.id }}" class="btn btn-primary" style="margin-right: 5px; font-size: 12px; padding: 4px 8px;">Editer</a>
-                                        <a href="/delete_consumer/{{ consumer_block.id }}" class="btn btn-danger" style="font-size: 12px; padding: 4px 8px;">Supprimer</a>
+                                        <button onclick="editConsumer({{ consumer_block.id }})" class="btn btn-primary" style="margin-right: 5px; font-size: 12px; padding: 4px 8px;">Editer</button>
+                                        <button onclick="deleteConsumer({{ consumer_block.id }})" class="btn btn-danger" style="font-size: 12px; padding: 4px 8px;">Supprimer</button>
                                     </div>
                                 </div>
+                                
+                                <!-- Formulaire d'upload avec bouton personnalisé -->
                                 <form method="POST" action="{{ url_for('upload_consumer_file') }}" enctype="multipart/form-data" style="margin-bottom: 10px;" id="form_consumer_{{ consumer_block.id }}">
                                     <input type="hidden" name="cons_name" value="{{ consumer_block.cons_name }}">
                                     <input type="hidden" name="id" value="{{ consumer_block.id }}">
                                     <input type="hidden" name="priority" value="{{ consumer_block.priority }}">
                                     <input type="hidden" name="ratio" value="{{ consumer_block.ratio }}">
-                                    <input type="file" name="file" id="file_consumer_{{ consumer_block.id }}" required style="margin-bottom: 5px;" onchange="uploadConsumerFile(this.form);">
+                                    
+                                    <div class="file-upload-container">
+                                        <!-- Input file caché -->
+                                        <input type="file" name="file" id="file_consumer_{{ consumer_block.id }}" class="custom-file-input" onchange="handleConsumerFileSelect(this, {{ consumer_block.id }});" accept=".csv">
+                                        
+                                        <!-- Bouton personnalisé -->
+                                        <label for="file_consumer_{{ consumer_block.id }}" class="custom-file-button">
+                                            Choisir fichier
+                                        </label>
+                                        
+                                        <!-- Zone d'affichage du statut -->
+                                        <div id="status_consumer_{{ consumer_block.id }}" 
+                                             class="file-status-display {% if consumer_block.has_file() %}file-status-has-file{% else %}file-status-no-file{% endif %}"
+                                             {% if consumer_block.has_file() %}title="{{ consumer_block.get_file_name() }}"{% endif %}>
+                                            {% if consumer_block.has_file() %}
+                                                {{ consumer_block.get_file_name() }}
+                                            {% else %}
+                                                Aucun fichier
+                                            {% endif %}
+                                        </div>
+                                    </div>
                                 </form>
                             </td>
                             {% for producer_block in producer_blocks %}
@@ -342,6 +479,152 @@ html {
 
 <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
 <script>
+    // Variables globales pour la gestion des chemins
+    let basePath = '';
+
+    // Fonction pour obtenir le chemin de base de l'application
+    function getBasePath() {
+        if (basePath === '') {
+            const currentPath = window.location.pathname;
+            // Si le chemin contient plus qu'un simple "/", utiliser le chemin actuel
+            if (currentPath !== '/' && currentPath !== '') {
+                basePath = currentPath.endsWith('/') ? currentPath.slice(0, -1) : currentPath;
+            } else {
+                basePath = '';
+            }
+        }
+        return basePath;
+    }
+
+    // Fonction pour construire une URL complète
+    function buildUrl(endpoint) {
+        const base = getBasePath();
+        if (base === '') {
+            return endpoint;
+        }
+        return base + endpoint;
+    }
+
+    // Fonction pour tronquer intelligemment un nom de fichier
+    function truncateFileName(fileName, maxLength = 18) {
+        if (fileName.length <= maxLength) {
+            return fileName;
+        }
+        
+        // Séparer le nom et l'extension
+        const lastDotIndex = fileName.lastIndexOf('.');
+        let name = fileName;
+        let extension = '';
+        
+        if (lastDotIndex !== -1) {
+            name = fileName.substring(0, lastDotIndex);
+            extension = fileName.substring(lastDotIndex);
+        }
+        
+        // Calculer la place disponible pour le nom (en gardant l'extension)
+        const availableLength = maxLength - extension.length - 3; // 3 pour "..."
+        
+        if (availableLength <= 0) {
+            return fileName.substring(0, maxLength - 3) + '...';
+        }
+        
+        // Prendre le début et la fin du nom
+        const startLength = Math.ceil(availableLength / 2);
+        const endLength = Math.floor(availableLength / 2);
+        
+        const start = name.substring(0, startLength);
+        const end = name.substring(name.length - endLength);
+        
+        return start + '...' + end + extension;
+    }
+
+    // Fonction pour appliquer la troncature aux fichiers existants au chargement de la page
+    function applyFileNameTruncation() {
+        // Appliquer aux producteurs
+        document.querySelectorAll('[id^="status_producer_"]').forEach(element => {
+            const title = element.getAttribute('title');
+            if (title && element.classList.contains('file-status-has-file')) {
+                const truncatedName = truncateFileName(title, 18);
+                element.textContent = truncatedName;
+            }
+        });
+        
+        // Appliquer aux consommateurs
+        document.querySelectorAll('[id^="status_consumer_"]').forEach(element => {
+            const title = element.getAttribute('title');
+            if (title && element.classList.contains('file-status-has-file')) {
+                const truncatedName = truncateFileName(title, 18);
+                element.textContent = truncatedName;
+            }
+        });
+    }
+
+    // Fonctions pour l'édition et la suppression
+    function editConsumer(id) {
+        const url = buildUrl('/update_consumer/' + id);
+        console.log('Redirection vers:', url);
+        window.location.href = url;
+    }
+
+    function editProducer(id) {
+        const url = buildUrl('/update_producer/' + id);
+        console.log('Redirection vers:', url);
+        window.location.href = url;
+    }
+
+    function deleteConsumer(id) {
+        if (confirm('Êtes-vous sûr de vouloir supprimer ce consommateur ?')) {
+            const url = buildUrl('/delete_consumer/' + id);
+            console.log('Redirection vers:', url);
+            window.location.href = url;
+        }
+    }
+
+    function deleteProducer(id) {
+        if (confirm('Êtes-vous sûr de vouloir supprimer ce producteur ?')) {
+            const url = buildUrl('/delete_producer/' + id);
+            console.log('Redirection vers:', url);
+            window.location.href = url;
+        }
+    }
+
+    // Fonctions pour gérer la sélection de fichiers avec troncature intelligente
+    function handleProducerFileSelect(input, producerId) {
+        const statusDiv = document.getElementById(`status_producer_${producerId}`);
+        const form = document.getElementById(`form_producer_${producerId}`);
+        
+        if (input.files && input.files[0]) {
+            const fileName = input.files[0].name;
+            const truncatedName = truncateFileName(fileName, 18);
+            
+            // Mettre à jour l'affichage avec le nom tronqué
+            statusDiv.textContent = truncatedName;
+            statusDiv.className = 'file-status-display file-status-has-file';
+            statusDiv.setAttribute('title', fileName); // Tooltip avec le nom complet
+            
+            // Uploader le fichier
+            uploadProducerFile(form);
+        }
+    }
+
+    function handleConsumerFileSelect(input, consumerId) {
+        const statusDiv = document.getElementById(`status_consumer_${consumerId}`);
+        const form = document.getElementById(`form_consumer_${consumerId}`);
+        
+        if (input.files && input.files[0]) {
+            const fileName = input.files[0].name;
+            const truncatedName = truncateFileName(fileName, 18);
+            
+            // Mettre à jour l'affichage avec le nom tronqué
+            statusDiv.textContent = truncatedName;
+            statusDiv.className = 'file-status-display file-status-has-file';
+            statusDiv.setAttribute('title', fileName); // Tooltip avec le nom complet
+            
+            // Uploader le fichier
+            uploadConsumerFile(form);
+        }
+    }
+
     // Système de redimensionnement du panneau latéral
     let isResizing = false;
     let currentSidebarWidth = localStorage.getItem('sidebarWidth') || 50;
@@ -473,7 +756,9 @@ html {
             value: parseInt(value) || 0
         };
 
-        fetch('/update_consumer_data', {
+        const url = buildUrl('/update_consumer_data');
+
+        fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -605,13 +890,9 @@ html {
     function loadChart() {
         console.log('Chargement du graphique...');
         
-        // Construire l'URL correcte
-        const currentPath = window.location.pathname; // "/RepartElec.fr"
-        // Ajouter /data à la fin du pathname actuel
-        const dataUrl = window.location.origin + currentPath + '/data';
+        const dataUrl = buildUrl('/data');
         
         console.log('URL de données:', dataUrl);
-        console.log('Current pathname:', currentPath);
         
         fetch(dataUrl)
             .then(response => {
@@ -682,7 +963,7 @@ html {
             });
     }
 
-    // Fonction pour upload de fichier consommateur sans redirection
+    // Fonction pour upload de fichier consommateur avec rechargement
     function uploadConsumerFile(form) {
         const formData = new FormData(form);
 
@@ -695,18 +976,26 @@ html {
             if (data.success) {
                 console.log('Fichier consommateur uploadé avec succès');
                 showMessage('Fichier consommateur uploadé avec succès', 'success');
+                // Recharger la page pour afficher le nom du fichier
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
             } else {
                 console.error('Erreur upload consommateur:', data.message);
                 showMessage('Erreur: ' + data.message, 'error');
+                // Remettre l'affichage précédent en cas d'erreur
+                window.location.reload();
             }
         })
         .catch(error => {
             console.error('Erreur:', error);
             showMessage('Erreur lors de l\'upload', 'error');
+            // Remettre l'affichage précédent en cas d'erreur
+            window.location.reload();
         });
     }
 
-    // Fonction pour upload de fichier producteur sans redirection
+    // Fonction pour upload de fichier producteur avec rechargement
     function uploadProducerFile(form) {
         const formData = new FormData(form);
 
@@ -719,14 +1008,22 @@ html {
             if (data.success) {
                 console.log('Fichier producteur uploadé avec succès');
                 showMessage('Fichier producteur uploadé avec succès', 'success');
+                // Recharger la page pour afficher le nom du fichier
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
             } else {
                 console.error('Erreur upload producteur:', data.message);
                 showMessage('Erreur: ' + data.message, 'error');
+                // Remettre l'affichage précédent en cas d'erreur
+                window.location.reload();
             }
         })
         .catch(error => {
             console.error('Erreur:', error);
             showMessage('Erreur lors de l\'upload', 'error');
+            // Remettre l'affichage précédent en cas d'erreur
+            window.location.reload();
         });
     }
 
@@ -763,9 +1060,11 @@ html {
     // Initialiser l'état des champs au chargement de la page
     document.addEventListener('DOMContentLoaded', function() {
         console.log('DOM chargé, initialisation...');
+        console.log('Base path détecté:', getBasePath());
         handleKeyTypeChange();
         initializeSidebar();
         loadChart(); // Charger le graphique au démarrage
+        applyFileNameTruncation(); // Appliquer la troncature aux fichiers existants
     });
 
     // Gestion du redimensionnement de la fenêtre

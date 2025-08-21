@@ -88,6 +88,24 @@ stat_file_list = []
 # Global variables used to manage interactions between different blocs
 stat_file_generated = False
 
+# Fonction helper pour gérer les redirections intelligemment
+def smart_redirect(endpoint='/'):
+    """
+    Fonction helper pour gérer les redirections intelligemment
+    selon l'environnement (local vs cPanel)
+    """
+    # Vérifier si on est sur le domaine cPanel
+    if request.environ.get('HTTP_HOST', '').startswith('apenco.fr'):
+        if endpoint == '/':
+            return redirect('/RepartElec/')
+        elif endpoint.startswith('/'):
+            return redirect('/RepartElec' + endpoint)
+        else:
+            return redirect('/RepartElec/' + endpoint)
+    else:
+        # Environnement local
+        return redirect(endpoint)
+
 def check_permissions():
     """Vérifie les permissions des dossiers"""
     try:
@@ -200,6 +218,17 @@ class ConsumerBlock(db.Model):
 
     def __repr__(self):
         return f'<ConsumerBlock {self.cons_name}>'
+        
+    def get_file_name(self):
+        """Retourne le nom du fichier associé au consommateur"""
+        consumer_obj = ConsumerObject.query.filter_by(consumer_block_id=self.id).first()
+        if consumer_obj and consumer_obj.file_path:
+            return os.path.basename(consumer_obj.file_path)
+        return None
+    
+    def has_file(self):
+        """Vérifie si un fichier est associé au consommateur"""
+        return self.get_file_name() is not None
 
 
 class ProducerBlock(db.Model):
@@ -210,6 +239,16 @@ class ProducerBlock(db.Model):
     def __repr__(self):
         return f'<ProducerBlock {self.prod_name}>'
 
+    def get_file_name(self):
+        """Retourne le nom du fichier associé au producteur"""
+        producer_obj = ProducerObject.query.filter_by(producer_block_id=self.id).first()
+        if producer_obj and producer_obj.file_path:
+            return os.path.basename(producer_obj.file_path)
+        return None
+    
+    def has_file(self):
+        """Vérifie si un fichier est associé au producteur"""
+        return self.get_file_name() is not None
 
 # Nouveaux modèles SQLAlchemy pour stocker les objets Consumer et Producer
 class ConsumerObject(db.Model):
@@ -409,7 +448,7 @@ def add_text_block():
     try:
         db.session.add(new_text_block)
         db.session.commit()
-        return redirect('/')
+        return smart_redirect('/')
     except:
         return 'There was an issue adding your text block'
 
@@ -551,7 +590,7 @@ def delete(id):
     try:
         db.session.delete(text_block_to_delete)
         db.session.commit()
-        return redirect('/')
+        return smart_redirect('/')
     except:
         return 'There was a problem deleting that text block'
 
@@ -566,7 +605,7 @@ def delete_consumer(id):
 
         db.session.delete(consumer_block_to_delete)
         db.session.commit()
-        return redirect('/')
+        return smart_redirect('/')
     except:
         return 'There was a problem deleting that consumer block'
 
@@ -590,7 +629,7 @@ def delete_producer(id):
         if producer_index >= 0:
             update_all_consumers_for_deleted_producer(producer_index)
 
-        return redirect('/')
+        return smart_redirect('/')
     except Exception as e:
         print(f"Erreur lors de la suppression du producteur : {str(e)}")
         return 'There was a problem deleting that producer block'
@@ -606,7 +645,7 @@ def update(id):
 
         try:
             db.session.commit()
-            return redirect('/')
+            return smart_redirect('/')
         except:
             return 'There was an issue updating your text block'
     else:
@@ -622,7 +661,7 @@ def update_consumer(id):
 
         try:
             db.session.commit()
-            return redirect('/')
+            return smart_redirect('/')
         except:
             return 'There was an issue updating your consumer block'
     else:
@@ -638,7 +677,7 @@ def update_producer(id):
 
         try:
             db.session.commit()
-            return redirect('/')
+            return smart_redirect('/')
         except:
             return 'There was an issue updating your producer block'
     else:
@@ -990,87 +1029,6 @@ def chart_data():
             }
         }
         return jsonify(result)
-
-@app.route('/debug_graph')
-def debug_graph():
-    """Route pour déboguer les problèmes de graphiques"""
-    global stat_file_generated, stat_file_list
-    
-    debug_info = {
-        'stat_file_generated': stat_file_generated,
-        'stat_file_list': stat_file_list,
-        'stat_file_list_length': len(stat_file_list) if stat_file_list else 0,
-        'export_folder': EXPORT_FOLDER,
-        'export_folder_exists': os.path.exists(EXPORT_FOLDER),
-        'files_in_export': []
-    }
-    
-    # Lister les fichiers dans le dossier Export
-    try:
-        if os.path.exists(EXPORT_FOLDER):
-            files = os.listdir(EXPORT_FOLDER)
-            debug_info['files_in_export'] = files
-            
-            # Vérifier si le premier fichier de statistiques existe
-            if stat_file_list and len(stat_file_list) > 0:
-                first_stat_file = stat_file_list[0]
-                debug_info['first_stat_file'] = first_stat_file
-                debug_info['first_stat_file_exists'] = os.path.exists(first_stat_file)
-                
-                # Lire quelques lignes du fichier pour vérifier son contenu
-                if os.path.exists(first_stat_file):
-                    try:
-                        with open(first_stat_file, 'r') as f:
-                            lines = f.readlines()[:5]  # Lire les 5 premières lignes
-                        debug_info['first_stat_file_content'] = lines
-                        debug_info['first_stat_file_line_count'] = len(lines)
-                    except Exception as e:
-                        debug_info['first_stat_file_read_error'] = str(e)
-                        
-    except Exception as e:
-        debug_info['export_folder_error'] = str(e)
-    
-    # Tester la génération de graphique
-    try:
-        if stat_file_generated and stat_file_list and len(stat_file_list) > 0:
-            import Graph
-            fig = Graph.generate_graph(stat_file_list[0], ';', group=False, resolution='jour')
-            debug_info['graph_generation'] = 'SUCCESS'
-            debug_info['graph_data_length'] = len(fig.data) if hasattr(fig, 'data') else 0
-        else:
-            debug_info['graph_generation'] = 'SKIPPED - No data'
-    except Exception as e:
-        debug_info['graph_generation'] = f'ERROR: {str(e)}'
-        import traceback
-        debug_info['graph_error_traceback'] = traceback.format_exc()
-    
-    return jsonify(debug_info)
-    
-@app.route('/test_chart')
-def test_chart():
-    try:
-        import Graph
-        fig = Graph.generate_graph('/home/jumu2280/RepartElec.fr/Export/1234567901000_statistics.csv', ';', group=False, resolution='jour')
-        
-        traces = []
-        for trace in fig.data:
-            traces.append({
-                'type': 'scatter',
-                'mode': 'lines',
-                'fill': 'tonexty' if len(traces) > 0 else 'tozeroy',
-                'stackgroup': 'one',
-                'name': trace.name,
-                'x': [str(x) for x in trace.x],
-                'y': [float(str(y)) if str(y) != 'nan' else 0 for y in trace.y]
-            })
-        
-        return jsonify({
-            'success': True,
-            'traces_count': len(traces),
-            'first_trace_points': len(traces[0]['x']) if traces else 0
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
 
 # Vérifier les permissions au démarrage
 if __name__ == '__main__':
