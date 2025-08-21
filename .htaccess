@@ -1,0 +1,33 @@
+RewriteEngine On
+
+# Redirection pour les fichiers statiques (CSS, JS, images)
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^.*$ - [L]
+
+# Redirection pour les dossiers existants
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^.*$ - [L]
+
+# Redirection spéciale pour les routes avec paramètres
+RewriteRule ^update_consumer/([0-9]+)/?$ /update_consumer?id=$1 [QSA,L]
+RewriteRule ^update_producer/([0-9]+)/?$ /update_producer?id=$1 [QSA,L]
+RewriteRule ^delete_consumer/([0-9]+)/?$ /delete_consumer?id=$1 [QSA,L]
+RewriteRule ^delete_producer/([0-9]+)/?$ /delete_producer?id=$1 [QSA,L]
+
+# Redirection générale vers app.py pour toutes les autres routes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ app.py/$1 [QSA,L]
+
+# Headers pour les requêtes AJAX
+Header always set Access-Control-Allow-Origin "*"
+Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+
+# Configuration pour Python/Flask
+AddHandler cgi-script .py
+Options +ExecCGI
+
+# Empêcher l'affichage des erreurs Python en production
+# (décommentez en production)
+# php_flag display_errors off

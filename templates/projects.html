@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mes Projets - RepartKey</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2dd4bf 0%, #0d9488 25%, #0891b2 50%, #0e7490 75%, #164e63 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            color: #0891b2;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .user-badge {
+            background: #f0f9ff;
+            padding: 8px 15px;
+            border-radius: 20px;
+            color: #0369a1;
+            font-size: 14px;
+            font-weight: 500;
+            border: 1px solid #bae6fd;
+        }
+        
+        .btn-logout {
+            background: #ef4444;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-logout:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.3);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .project-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .project-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #0891b2, #0e7490);
+        }
+        
+        .project-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .project-card.new-project {
+            border: 2px dashed #cbd5e1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            background: rgba(248, 250, 252, 0.95);
+        }
+        
+        .project-card.new-project::before {
+            display: none;
+        }
+        
+        .project-card.new-project:hover {
+            border-color: #0891b2;
+            background: rgba(240, 249, 255, 0.95);
+        }
+        
+        .project-name {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 10px;
+        }
+        
+        .project-description {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 15px;
+            line-height: 1.5;
+            min-height: 40px;
+        }
+        
+        .project-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .project-date {
+            color: #94a3b8;
+            font-size: 12px;
+        }
+        
+        .project-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-action {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-open {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-open:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+        
+        .btn-delete {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-delete:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+        }
+        
+        .add-icon {
+            font-size: 48px;
+            color: #cbd5e1;
+            margin-bottom: 10px;
+        }
+        
+        .add-text {
+            color: #64748b;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        /* Modal pour nouveau projet */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal.show {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .modal-header {
+            margin-bottom: 30px;
+        }
+        
+        .modal-header h2 {
+            color: #1e293b;
+            font-size: 24px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #334155;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #0891b2;
+            box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            padding: 12px 25px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #0891b2, #0e7490);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(8, 145, 178, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #475569;
+        }
+        
+        .btn-secondary:hover {
+            background: #cbd5e1;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            margin-top: 40px;
+        }
+        
+        .empty-state-icon {
+            font-size: 80px;
+            color: #cbd5e1;
+            margin-bottom: 20px;
+        }
+        
+        .empty-state-title {
+            font-size: 24px;
+            color: #334155;
+            margin-bottom: 10px;
+        }
+        
+        .empty-state-text {
+            color: #64748b;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        
+        .error-message {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #fca5a5;
+        }
+        
+        .success-message {
+            background: #dcfce7;
+            color: #16a34a;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #86efac;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚡ Mes Projets RepartKey</h1>
+        <div class="user-info">
+            <span class="user-badge">👤 {{ current_user.username }}</span>
+            <a href="{{ url_for('logout') }}" class="btn-logout">Déconnexion</a>
+        </div>
+    </div>
+    
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="{{ 'error-message' if category == 'error' else 'success-message' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {% if projects %}
+            <div class="projects-grid">
+                <!-- Carte pour créer un nouveau projet -->
+                <div class="project-card new-project" onclick="showNewProjectModal()">
+                    <div class="add-icon">➕</div>
+                    <div class="add-text">Nouveau Projet</div>
+                </div>
+                
+                <!-- Cartes des projets existants -->
+                {% for project in projects %}
+                    <div class="project-card" onclick="openProject({{ project.id }})">
+                        <div class="project-name">{{ project.name }}</div>
+                        <div class="project-description">
+                            {{ project.description or "Aucune description" }}
+                        </div>
+                        <div class="project-meta">
+                            <span class="project-date">
+                                Créé le {{ project.date_created.strftime('%d/%m/%Y') }}
+                            </span>
+                            <div class="project-actions" onclick="event.stopPropagation()">
+                                <a href="{{ url_for('project_dashboard', project_id=project.id) }}" class="btn-action btn-open">
+                                    Ouvrir
+                                </a>
+                                <button onclick="deleteProject({{ project.id }})" class="btn-action btn-delete">
+                                    Supprimer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">📁</div>
+                <div class="empty-state-title">Aucun projet pour le moment</div>
+                <div class="empty-state-text">
+                    Créez votre premier projet pour commencer à gérer vos clés de répartition énergétique
+                </div>
+                <button class="btn btn-primary" onclick="showNewProjectModal()">
+                    ➕ Créer mon premier projet
+                </button>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Modal pour nouveau projet -->
+    <div id="newProjectModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Créer un nouveau projet</h2>
+            </div>
+            <form method="POST" action="{{ url_for('create_project') }}">
+                {{ form.hidden_tag() }}
+                <div class="form-group">
+                    {{ form.name.label }}
+                    {{ form.name(placeholder="Ex: Projet Solaire 2025") }}
+                </div>
+                <div class="form-group">
+                    {{ form.description.label }}
+                    {{ form.description(placeholder="Description optionnelle de votre projet...") }}
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="hideNewProjectModal()">
+                        Annuler
+                    </button>
+                    {{ form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        function showNewProjectModal() {
+            document.getElementById('newProjectModal').classList.add('show');
+        }
+        
+        function hideNewProjectModal() {
+            document.getElementById('newProjectModal').classList.remove('show');
+        }
+        
+        function openProject(projectId) {
+            window.location.href = `/project/${projectId}`;
+        }
+        
+        function deleteProject(projectId) {
+            if (confirm('Êtes-vous sûr de vouloir supprimer ce projet ? Cette action est irréversible.')) {
+                window.location.href = `/delete_project/${projectId}`;
+            }
+        }
+        
+        // Fermer la modal en cliquant à l'extérieur
+        document.getElementById('newProjectModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideNewProjectModal();
+            }
+        });
+    </script>
+</body>
+</html>

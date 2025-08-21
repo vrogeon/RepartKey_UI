@@ -2,6 +2,23 @@
 
 {% block content %}
 
+{% if project %}
+<div style="background: linear-gradient(90deg, #e0f2fe, #dbeafe); padding: 15px 20px; margin: -20px -20px 20px -20px; border-radius: 0 0 15px 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <strong style="color: #0369a1; font-size: 16px;">📁 Projet actuel :</strong>
+            <span style="color: #0c4a6e; font-size: 18px; font-weight: 600;">{{ project.name }}</span>
+            {% if project.description %}
+                <span style="color: #64748b; font-size: 14px; margin-left: 10px;">• {{ project.description }}</span>
+            {% endif %}
+        </div>
+        <a href="{{ url_for('projects') }}" style="background: white; color: #0891b2; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 500; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: all 0.3s;">
+            ← Retour aux projets
+        </a>
+    </div>
+</div>
+{% endif %}
+
 <style>
 /* Surcharge le background du body défini dans base.html */
 body {
@@ -292,7 +309,7 @@ html {
                                 <div style="padding: 8px;">
                                     <!-- Ligne Producteur en haut -->
                                     <div style="margin-bottom: 10px; line-height: 1;">
-                                        <form action="{{ url_for('add_producer_block') }}" method="POST" style="display: inline-block;" onsubmit="return addProducerBlock(event, this);">
+                                        <form action="{{ url_for('add_producer_block', project_id=project_id) }}" method="POST" style="display: inline-block;" onsubmit="return addProducerBlock(event, this);">
                                             <input type="text" name="prod_name" id="prod_name_table" class="form-control" placeholder="Nom producteur" required style="width: 120px; font-size: 12px; padding: 6px; margin: 0; vertical-align: middle; display: inline-block;">
                                             <button type="submit" class="btn btn-primary" style="font-size: 12px; padding: 6px 8px; white-space: nowrap; margin: 0; margin-left: 10px; vertical-align: middle; display: inline-block;">Ajouter</button>
                                         </form>
@@ -300,7 +317,7 @@ html {
 
                                     <!-- Ligne Consommateur en bas -->
                                     <div style="line-height: 1;">
-                                        <form action="{{ url_for('add_consumer_block') }}" method="POST" style="display: inline-block;" onsubmit="return addConsumerBlock(event, this);">
+                                        <form action="{{ url_for('add_consumer_block', project_id=project_id) }}" method="POST" style="display: inline-block;" onsubmit="return addConsumerBlock(event, this);">
                                             <input type="text" name="cons_name" id="cons_name_table" class="form-control" placeholder="Nom consommateur" required style="width: 120px; font-size: 12px; padding: 6px; margin: 0; vertical-align: middle; display: inline-block;">
                                             <button type="submit" class="btn btn-primary" style="font-size: 12px; padding: 6px 8px; white-space: nowrap; margin: 0; margin-left: 10px; vertical-align: middle; display: inline-block;">Ajouter</button>
                                         </form>
@@ -318,7 +335,7 @@ html {
                                 </div>
                                 
                                 <!-- Formulaire d'upload avec bouton personnalisé -->
-                                <form method="POST" action="{{ url_for('upload_producer_file') }}" enctype="multipart/form-data" style="margin-bottom: 10px;" id="form_producer_{{ producer_block.id }}">
+                                <form method="POST" action="{{ url_for('upload_producer_file', project_id=project_id) }}" enctype="multipart/form-data" style="margin-bottom: 10px;" id="form_producer_{{ producer_block.id }}">
                                     <input type="hidden" name="prod_name" value="{{ producer_block.prod_name }}">
                                     <input type="hidden" name="id" value="{{ producer_block.id }}">
                                     
@@ -359,7 +376,7 @@ html {
                                 </div>
                                 
                                 <!-- Formulaire d'upload avec bouton personnalisé -->
-                                <form method="POST" action="{{ url_for('upload_consumer_file') }}" enctype="multipart/form-data" style="margin-bottom: 10px;" id="form_consumer_{{ consumer_block.id }}">
+                                <form method="POST" action="{{ url_for('upload_consumer_file', project_id=project_id) }}" enctype="multipart/form-data" style="margin-bottom: 10px;" id="form_consumer_{{ consumer_block.id }}">
                                     <input type="hidden" name="cons_name" value="{{ consumer_block.cons_name }}">
                                     <input type="hidden" name="id" value="{{ consumer_block.id }}">
                                     <input type="hidden" name="priority" value="{{ consumer_block.priority }}">
@@ -439,7 +456,7 @@ html {
                                 <option value="static">Statique</option>
                             </select>
                         </div>
-                        <form action="{{ url_for('compute_repartition_keys') }}" method="POST" onsubmit="return computeRepartitionKeys(event, this);">
+                        <form action="{{ url_for('compute_repartition_keys', project_id=project_id) }}" method="POST" onsubmit="return computeRepartitionKeys(event, this);">
                             <input type="hidden" name="cles" id="cles_hidden" value="default">
                             <button type="submit" class="btn btn-primary" style="width: 100%;">Calculer les clés de répartitions</button>
                         </form>
@@ -479,6 +496,7 @@ html {
 
 <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
 <script>
+    const projectId = {{ project_id|tojson }};
     // Variables globales pour la gestion des chemins
     let basePath = '';
 
@@ -499,6 +517,38 @@ html {
     // Fonction pour construire une URL complète
     function buildUrl(endpoint) {
         const base = getBasePath();
+
+        // Si l'endpoint contient déjà /project/, ne pas le modifier
+        if (endpoint.includes('/project/')) {
+            return base === '' ? endpoint : base + endpoint;
+        }
+
+        // Pour les endpoints spécifiques au projet
+        const projectEndpoints = [
+            '/add_consumer',
+            '/add_producer',
+            '/compute_repartition_keys',
+            '/data',
+            '/update_consumer_data',
+            '/upload_consumer_file',
+            '/upload_producer_file',
+            '/delete_consumer/',
+            '/delete_producer/',
+            '/update_consumer/',
+            '/update_producer/'
+        ];
+
+        // Vérifier si c'est un endpoint de projet
+        const isProjectEndpoint = projectEndpoints.some(pe => endpoint.includes(pe));
+
+        if (isProjectEndpoint && projectId) {
+            // Ajouter le préfixe /project/{id}
+            const cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
+            const projectEndpoint = `/project/${projectId}${cleanEndpoint}`;
+            return base === '' ? projectEndpoint : base + projectEndpoint;
+        }
+
+        // Pour les autres endpoints
         if (base === '') {
             return endpoint;
         }
@@ -786,8 +836,9 @@ html {
         event.preventDefault();
 
         const formData = new FormData(form);
+        const url = buildUrl('/add_producer');
 
-        fetch(form.action, {
+        fetch(url, {
             method: 'POST',
             body: formData
         })
@@ -795,7 +846,6 @@ html {
         .then(data => {
             if (data.success) {
                 showMessage('Producteur ajouté avec succès', 'success');
-                // Recharger la page pour voir les changements
                 window.location.reload();
             } else {
                 showMessage('Erreur: ' + data.message, 'error');
@@ -814,8 +864,9 @@ html {
         event.preventDefault();
 
         const formData = new FormData(form);
+        const url = buildUrl('/add_consumer');
 
-        fetch(form.action, {
+        fetch(url, {
             method: 'POST',
             body: formData
         })
@@ -823,7 +874,6 @@ html {
         .then(data => {
             if (data.success) {
                 showMessage('Consommateur ajouté avec succès', 'success');
-                // Recharger la page pour voir les changements
                 window.location.reload();
             } else {
                 showMessage('Erreur: ' + data.message, 'error');
@@ -840,15 +890,15 @@ html {
     function computeRepartitionKeys(event, form) {
         event.preventDefault();
 
-        // Désactiver le bouton pendant le calcul
         const submitButton = form.querySelector('button[type="submit"]');
         const originalText = submitButton.textContent;
         submitButton.disabled = true;
         submitButton.textContent = 'Calcul en cours...';
 
         const formData = new FormData(form);
+        const url = buildUrl('/compute_repartition_keys');
 
-        fetch(form.action, {
+        fetch(url, {
             method: 'POST',
             body: formData
         })
@@ -858,16 +908,13 @@ html {
                 console.log('Calcul des clés de répartition terminé');
                 showMessage('Calcul des clés de répartition terminé avec succès', 'success');
 
-                // Mettre à jour les indicateurs
                 if (data.indicators) {
                     document.getElementById('auto_consumption_rate').textContent = data.indicators.auto_consumption_rate + '%';
                     document.getElementById('auto_production_rate_global').textContent = data.indicators.auto_production_rate_global + '%';
                     document.getElementById('coverage_rate').textContent = data.indicators.coverage_rate + '%';
                 }
 
-                // Recharger le graphique
                 loadChart();
-
             } else {
                 console.error('Erreur calcul:', data.message);
                 showMessage('Erreur: ' + data.message, 'error');
@@ -878,7 +925,6 @@ html {
             showMessage('Erreur lors du calcul', 'error');
         })
         .finally(() => {
-            // Réactiver le bouton
             submitButton.disabled = false;
             submitButton.textContent = originalText;
         });
@@ -889,15 +935,15 @@ html {
     // Fonction pour charger le graphique - VERSION AMÉLIORÉE
     function loadChart() {
         console.log('Chargement du graphique...');
-        
+
         const dataUrl = buildUrl('/data');
-        
+
         console.log('URL de données:', dataUrl);
-        
+
         fetch(dataUrl)
             .then(response => {
                 console.log('Response status:', response.status);
-                
+
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -905,7 +951,7 @@ html {
             })
             .then(fig => {
                 console.log('Données reçues:', fig);
-                
+
                 if (!fig.data || fig.data.length === 0) {
                     console.log('Aucune donnée de graphique reçue');
                     const emptyLayout = {
@@ -924,27 +970,27 @@ html {
                     Plotly.newPlot('chart', [], emptyLayout, {responsive: true});
                     return;
                 }
-                
+
                 const config = {
                     responsive: true,
                     displayModeBar: true,
                     displaylogo: false,
                     modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
                 };
-                
+
                 const layout = {
                     ...fig.layout,
                     autosize: true,
                     margin: { l: 50, r: 50, t: 50, b: 50 },
                     font: { size: 12 }
                 };
-                
+
                 console.log(`Création du graphique avec ${fig.data.length} traces`);
-                
+
                 Plotly.newPlot('chart', fig.data, layout, config)
                     .then(() => {
                         console.log('Graphique créé avec succès');
-                        
+
                         if (fig.indicators) {
                             document.getElementById('auto_consumption_rate').textContent = fig.indicators.auto_consumption_rate + '%';
                             document.getElementById('auto_production_rate_global').textContent = fig.indicators.auto_production_rate_global + '%';
