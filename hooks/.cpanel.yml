@@ -1,0 +1,16 @@
+deployment:
+  tasks:
+    # 1. Définir le chemin où l'app est déployée
+    - export DEPLOYPATH=/home/jumu2280/repositories/RepartKey_UI
+
+    # 2. Synchroniser le dépôt avec le dossier de déploiement
+    - /bin/rsync -a --exclude='.git' ./ $DEPLOYPATH
+
+    # 3. Activer l'environnement virtuel créé via cPanel
+    - source /home/jumu2280/virtualenv/RepartKey_UI/3.11/bin/activate
+
+    # 4. Installer/mettre à jour les dépendances Python
+    - pip install -r $DEPLOYPATH/requirements.txt
+
+    # 5. Redémarrer l'application (Passenger)
+    - touch $DEPLOYPATH/tmp/restart.txt
