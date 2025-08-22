@@ -3,6 +3,127 @@
 {% block content %}
 
 <style>
+/* Styles pour les indicateurs de chargement */
+.loading-spinner {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(8, 145, 178, 0.1);
+    border-radius: 50%;
+    border-top-color: #0891b2;
+    animation: spin 1s ease-in-out infinite;
+}
+
+.loading-spinner.small {
+    width: 16px;
+    height: 16px;
+    border-width: 2px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 300px;
+}
+
+.loading-text {
+    margin-top: 20px;
+    color: #64748b;
+    font-size: 14px;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.indicator-loading {
+    display: inline-block;
+    width: 60px;
+    text-align: center;
+    color: #94a3b8;
+    font-style: italic;
+    font-size: 11px;
+}
+
+.indicator-value {
+    transition: all 0.3s ease;
+}
+
+.indicator-value.loading {
+    opacity: 0.5;
+    position: relative;
+}
+
+.indicator-value.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(8, 145, 178, 0.2);
+    border-top-color: #0891b2;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+/* Animation de fade-in pour les données */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.data-loaded {
+    animation: fadeIn 0.5s ease;
+}
+
+/* Overlay de chargement pour les sections */
+.section-loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.section-loading::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.section-loading::after {
+    content: 'Chargement...';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #0891b2;
+    font-weight: 500;
+    z-index: 101;
+}
+
 /* Styles existants restent les mêmes */
 body {
     background: linear-gradient(135deg, #2dd4bf 0%, #0d9488 25%, #0891b2 50%, #0e7490 75%, #164e63 100%) !important;
@@ -500,15 +621,21 @@ body {
                             <tbody>
                                 <tr>
                                     <td style="border: 1px solid #ddd; padding: 6px; background-color: #f8f9fa; font-weight: bold; color: #666;">Taux d'autoconsommation</td>
-                                    <td id="auto_consumption_rate" style="border: 1px solid #ddd; padding: 6px; background-color: white; text-align: right;">-</td>
+                                    <td id="auto_consumption_rate" class="indicator-value" style="border: 1px solid #ddd; padding: 6px; background-color: white; text-align: right;">
+                                        <span class="indicator-loading">...</span>
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td style="border: 1px solid #ddd; padding: 6px; background-color: #f8f9fa; font-weight: bold; color: #666;">Taux d'autoproduction global</td>
-                                    <td id="auto_production_rate_global" style="border: 1px solid #ddd; padding: 6px; background-color: white; text-align: right;">-</td>
+                                    <td id="auto_production_rate_global" class="indicator-value" style="border: 1px solid #ddd; padding: 6px; background-color: white; text-align: right;">
+                                        <span class="indicator-loading">...</span>
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td style="border: 1px solid #ddd; padding: 6px; background-color: #f8f9fa; font-weight: bold; color: #666;">Taux de couverture</td>
-                                    <td id="coverage_rate" style="border: 1px solid #ddd; padding: 6px; background-color: white; text-align: right;">-</td>
+                                    <td id="coverage_rate" class="indicator-value" style="border: 1px solid #ddd; padding: 6px; background-color: white; text-align: right;">
+                                        <span class="indicator-loading">...</span>
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -518,7 +645,13 @@ body {
         </div>
 
         <div class="grouped-block" style="flex: 1; padding: 10px; display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
-            <div id="chart" style="width:100%; height: 100%;"></div>
+            <div id="chart-container" style="width:100%; height: 100%; position: relative;">
+                <div id="chart-loading" class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Chargement du graphique...</div>
+                </div>
+                <div id="chart" style="width:100%; height: 100%; display: none;"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -701,6 +834,13 @@ function handleConsumerFileSelect(input, consumerId) {
 // Upload de fichiers
 function uploadProducerFile(form) {
     const formData = new FormData(form);
+    const producerId = form.querySelector('input[name="id"]').value;
+    const statusDiv = document.getElementById(`status_producer_${producerId}`);
+
+    // Afficher un indicateur de chargement
+    if (statusDiv) {
+        statusDiv.innerHTML = '<span style="color: #0891b2;">Envoi...</span>';
+    }
 
     fetch(urlManager.getUploadProducerFileUrl(), {
         method: 'POST',
@@ -711,24 +851,45 @@ function uploadProducerFile(form) {
         if (data.success) {
             console.log('Fichier producteur uploadé avec succès');
             showMessage('Fichier producteur uploadé avec succès', 'success');
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+
+            // Mettre à jour le statut
+            if (statusDiv) {
+                const fileName = data.filename || 'Fichier uploadé';
+                statusDiv.className = 'file-status-display file-status-has-file';
+                statusDiv.setAttribute('title', fileName);
+                statusDiv.textContent = truncateFileName(fileName, 18);
+            }
         } else {
             console.error('Erreur upload producteur:', data.message);
             showMessage('Erreur: ' + data.message, 'error');
-            window.location.reload();
+
+            // Restaurer l'état précédent
+            if (statusDiv) {
+                statusDiv.className = 'file-status-display file-status-no-file';
+                statusDiv.textContent = 'Aucun fichier';
+            }
         }
     })
     .catch(error => {
         console.error('Erreur:', error);
         showMessage('Erreur lors de l\'upload', 'error');
-        window.location.reload();
+
+        if (statusDiv) {
+            statusDiv.className = 'file-status-display file-status-no-file';
+            statusDiv.textContent = 'Erreur';
+        }
     });
 }
 
 function uploadConsumerFile(form) {
     const formData = new FormData(form);
+    const consumerId = form.querySelector('input[name="id"]').value;
+    const statusDiv = document.getElementById(`status_consumer_${consumerId}`);
+
+    // Afficher un indicateur de chargement
+    if (statusDiv) {
+        statusDiv.innerHTML = '<span style="color: #0891b2;">Envoi...</span>';
+    }
 
     fetch(urlManager.getUploadConsumerFileUrl(), {
         method: 'POST',
@@ -739,19 +900,33 @@ function uploadConsumerFile(form) {
         if (data.success) {
             console.log('Fichier consommateur uploadé avec succès');
             showMessage('Fichier consommateur uploadé avec succès', 'success');
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+
+            // Mettre à jour le statut
+            if (statusDiv) {
+                const fileName = data.filename || 'Fichier uploadé';
+                statusDiv.className = 'file-status-display file-status-has-file';
+                statusDiv.setAttribute('title', fileName);
+                statusDiv.textContent = truncateFileName(fileName, 18);
+            }
         } else {
             console.error('Erreur upload consommateur:', data.message);
             showMessage('Erreur: ' + data.message, 'error');
-            window.location.reload();
+
+            // Restaurer l'état précédent
+            if (statusDiv) {
+                statusDiv.className = 'file-status-display file-status-no-file';
+                statusDiv.textContent = 'Aucun fichier';
+            }
         }
     })
     .catch(error => {
         console.error('Erreur:', error);
         showMessage('Erreur lors de l\'upload', 'error');
-        window.location.reload();
+
+        if (statusDiv) {
+            statusDiv.className = 'file-status-display file-status-no-file';
+            statusDiv.textContent = 'Erreur';
+        }
     });
 }
 
@@ -910,6 +1085,20 @@ function handleKeyTypeChange() {
 function loadChart() {
     console.log('Chargement du graphique...');
 
+    // Afficher le loader
+    const chartContainer = document.getElementById('chart');
+    const chartLoading = document.getElementById('chart-loading');
+
+    if (chartLoading) {
+        chartLoading.style.display = 'flex';
+    }
+    if (chartContainer) {
+        chartContainer.style.display = 'none';
+    }
+
+    // Mettre les indicateurs en état de chargement
+    setIndicatorsLoading(true);
+
     const dataUrl = urlManager.getDataUrl();
     console.log('URL de données:', dataUrl);
 
@@ -924,6 +1113,14 @@ function loadChart() {
         })
         .then(fig => {
             console.log('Données reçues:', fig);
+
+            // Masquer le loader
+            if (chartLoading) {
+                chartLoading.style.display = 'none';
+            }
+            if (chartContainer) {
+                chartContainer.style.display = 'block';
+            }
 
             if (!fig.data || fig.data.length === 0) {
                 console.log('Aucune donnée de graphique reçue');
@@ -941,6 +1138,13 @@ function loadChart() {
                     }]
                 };
                 Plotly.newPlot('chart', [], emptyLayout, {responsive: true});
+
+                // Mettre à jour les indicateurs avec des valeurs par défaut
+                updateIndicators({
+                    auto_consumption_rate: '-',
+                    auto_production_rate_global: '-',
+                    coverage_rate: '-'
+                });
                 return;
             }
 
@@ -964,27 +1168,101 @@ function loadChart() {
                 .then(() => {
                     console.log('Graphique créé avec succès');
 
+                    // Ajouter une animation de fade-in
+                    chartContainer.classList.add('data-loaded');
+
+                    // Mettre à jour les indicateurs
                     if (fig.indicators) {
-                        document.getElementById('auto_consumption_rate').textContent = fig.indicators.auto_consumption_rate + '%';
-                        document.getElementById('auto_production_rate_global').textContent = fig.indicators.auto_production_rate_global + '%';
-                        document.getElementById('coverage_rate').textContent = fig.indicators.coverage_rate + '%';
+                        updateIndicators(fig.indicators);
+                    } else {
+                        updateIndicators({
+                            auto_consumption_rate: '-',
+                            auto_production_rate_global: '-',
+                            coverage_rate: '-'
+                        });
                     }
                 })
                 .catch(error => {
                     console.error('Erreur lors de la création du graphique Plotly:', error);
                     showMessage('Erreur lors de l\'affichage du graphique', 'error');
+                    setIndicatorsLoading(false);
                 });
         })
         .catch(error => {
             console.error('Erreur lors du chargement des données:', error);
             console.error('Détails de l\'erreur:', error.message);
+
+            // Masquer le loader et afficher un message
+            if (chartLoading) {
+                chartLoading.innerHTML = `
+                    <div style="text-align: center; color: #64748b;">
+                        <div style="font-size: 48px; margin-bottom: 20px;">📊</div>
+                        <div style="font-size: 16px; margin-bottom: 10px;">Aucune donnée disponible</div>
+                        <div style="font-size: 14px;">Calculez les clés de répartition pour afficher le graphique</div>
+                    </div>
+                `;
+            }
+
+            // Mettre les indicateurs à leur état par défaut
+            updateIndicators({
+                auto_consumption_rate: '-',
+                auto_production_rate_global: '-',
+                coverage_rate: '-'
+            });
+
             // Ne pas afficher de message d'erreur si c'est juste qu'il n'y a pas encore de données
-            if (error.message.includes('404')) {
-                console.log('Pas encore de données pour ce projet');
-            } else {
+            if (!error.message.includes('404')) {
                 showMessage('Erreur lors du chargement des données du graphique', 'error');
             }
         });
+}
+
+// Fonction pour mettre à jour les indicateurs
+function updateIndicators(indicators) {
+    const elements = {
+        'auto_consumption_rate': indicators.auto_consumption_rate,
+        'auto_production_rate_global': indicators.auto_production_rate_global,
+        'coverage_rate': indicators.coverage_rate
+    };
+
+    Object.keys(elements).forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            const value = elements[id];
+
+            // Animation de transition
+            element.style.opacity = '0';
+
+            setTimeout(() => {
+                if (value !== '-' && value !== null && value !== undefined) {
+                    element.innerHTML = `<span class="data-loaded">${value}%</span>`;
+                } else {
+                    element.innerHTML = '-';
+                }
+                element.classList.remove('loading');
+                element.style.opacity = '1';
+            }, 200);
+        }
+    });
+
+    setIndicatorsLoading(false);
+}
+
+// Fonction pour mettre les indicateurs en état de chargement
+function setIndicatorsLoading(loading) {
+    const indicators = ['auto_consumption_rate', 'auto_production_rate_global', 'coverage_rate'];
+
+    indicators.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            if (loading) {
+                element.classList.add('loading');
+                element.innerHTML = '<span class="indicator-loading">...</span>';
+            } else {
+                element.classList.remove('loading');
+            }
+        }
+    });
 }
 
 // Messages utilisateur
@@ -1098,9 +1376,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 showMessage('Calcul des clés de répartition terminé avec succès', 'success');
 
                 if (data.indicators) {
-                    document.getElementById('auto_consumption_rate').textContent = data.indicators.auto_consumption_rate + '%';
-                    document.getElementById('auto_production_rate_global').textContent = data.indicators.auto_production_rate_global + '%';
-                    document.getElementById('coverage_rate').textContent = data.indicators.coverage_rate + '%';
+                    updateIndicators(data.indicators);
                 }
 
                 loadChart();
