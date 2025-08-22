@@ -20,14 +20,8 @@
 {% endif %}
 
 <style>
-/* Surcharge le background du body défini dans base.html */
+/* Styles existants restent les mêmes */
 body {
-    background: linear-gradient(135deg, #2dd4bf 0%, #0d9488 25%, #0891b2 50%, #0e7490 75%, #164e63 100%) !important;
-    background-attachment: fixed !important;
-}
-
-/* Surcharge aussi le html au cas où */
-html {
     background: linear-gradient(135deg, #2dd4bf 0%, #0d9488 25%, #0891b2 50%, #0e7490 75%, #164e63 100%) !important;
     background-attachment: fixed !important;
 }
@@ -94,25 +88,6 @@ html {
     border-color: #ced4da !important;
 }
 
-.form-section {
-    margin-bottom: 15px;
-}
-
-.form-section:last-child {
-    margin-bottom: 0;
-}
-
-.btn {
-    margin-top: 10px;
-}
-
-.form-control {
-    margin-bottom: 10px;
-    width: 100%;
-    max-width: 280px;
-}
-
-/* Styles pour le panneau latéral */
 .sidebar-panel {
     position: fixed;
     top: 0;
@@ -130,10 +105,7 @@ html {
     max-width: 80vw;
 }
 
-/* Styles pour les inputs file personnalisés */
-.custom-file-input {
-    display: none;
-}
+.custom-file-input { display: none; }
 
 .custom-file-button {
     display: inline-block;
@@ -154,11 +126,6 @@ html {
     border-color: #0056b3;
 }
 
-.custom-file-button:active {
-    background-color: #004085;
-    border-color: #004085;
-}
-
 .file-status-display {
     padding: 3px 8px;
     border-radius: 3px;
@@ -168,9 +135,9 @@ html {
     flex: 1;
     text-align: left;
     min-width: 100px;
-    max-width: 140px; /* Largeur limitée */
+    max-width: 140px;
     overflow: hidden;
-    cursor: help; /* Indicateur que plus d'infos sont disponibles */
+    cursor: help;
     position: relative;
 }
 
@@ -192,37 +159,6 @@ html {
     gap: 8px;
 }
 
-/* Tooltip pour afficher le nom complet */
-.file-status-display[title]:hover::after {
-    content: attr(title);
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: #333;
-    color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    white-space: nowrap;
-    z-index: 1000;
-    margin-bottom: 5px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-/* Flèche du tooltip */
-.file-status-display[title]:hover::before {
-    content: '';
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 4px solid transparent;
-    border-top-color: #333;
-    z-index: 1001;
-    margin-bottom: 1px;
-}
-
 .resize-handle {
     position: fixed;
     top: 0;
@@ -235,23 +171,6 @@ html {
     transition: opacity 0.3s ease, left 0.1s ease;
     z-index: 1002;
     border-radius: 0 3px 3px 0;
-}
-
-.resize-handle:hover {
-    opacity: 1;
-    background: #0056b3;
-}
-
-.resize-handle::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 3px;
-    height: 30px;
-    background: white;
-    border-radius: 2px;
 }
 
 .sidebar-content {
@@ -277,21 +196,6 @@ html {
     height: calc(100vh - 40px);
     gap: 20px;
 }
-
-@media (max-width: 768px) {
-    .horizontal-container {
-        flex-direction: column;
-    }
-
-    .sidebar-panel {
-        width: 100%;
-        transform: translateX(-100%);
-    }
-
-    .main-content.sidebar-open {
-        margin-left: 0;
-    }
-}
 </style>
 
 <!-- Panneau latéral pour le tableau de répartition -->
@@ -299,25 +203,21 @@ html {
     <div class="sidebar-content">
         <h3 class="block-title" onclick="toggleBlock(this)">Tableau de répartition</h3>
         <div class="block-content">
-            {% if true %}
             <div style="overflow-x: auto;">
                 <table style="width: 100%; border-collapse: collapse;">
                     <tbody>
                         <tr>
                             <td style="border: 1px solid #ddd; padding: 8px;">
-                                <!-- Formulaires d'ajout sans contour -->
                                 <div style="padding: 8px;">
-                                    <!-- Ligne Producteur en haut -->
                                     <div style="margin-bottom: 10px; line-height: 1;">
-                                        <form action="{{ url_for('add_producer_block', project_id=project_id) }}" method="POST" style="display: inline-block;" onsubmit="return addProducerBlock(event, this);">
+                                        <form id="addProducerForm" style="display: inline-block;">
                                             <input type="text" name="prod_name" id="prod_name_table" class="form-control" placeholder="Nom producteur" required style="width: 120px; font-size: 12px; padding: 6px; margin: 0; vertical-align: middle; display: inline-block;">
                                             <button type="submit" class="btn btn-primary" style="font-size: 12px; padding: 6px 8px; white-space: nowrap; margin: 0; margin-left: 10px; vertical-align: middle; display: inline-block;">Ajouter</button>
                                         </form>
                                     </div>
 
-                                    <!-- Ligne Consommateur en bas -->
                                     <div style="line-height: 1;">
-                                        <form action="{{ url_for('add_consumer_block', project_id=project_id) }}" method="POST" style="display: inline-block;" onsubmit="return addConsumerBlock(event, this);">
+                                        <form id="addConsumerForm" style="display: inline-block;">
                                             <input type="text" name="cons_name" id="cons_name_table" class="form-control" placeholder="Nom consommateur" required style="width: 120px; font-size: 12px; padding: 6px; margin: 0; vertical-align: middle; display: inline-block;">
                                             <button type="submit" class="btn btn-primary" style="font-size: 12px; padding: 6px 8px; white-space: nowrap; margin: 0; margin-left: 10px; vertical-align: middle; display: inline-block;">Ajouter</button>
                                         </form>
@@ -333,23 +233,15 @@ html {
                                         <button onclick="deleteProducer({{ producer_block.id }})" class="btn btn-danger" style="font-size: 12px; padding: 4px 8px;">Supprimer</button>
                                     </div>
                                 </div>
-                                
-                                <!-- Formulaire d'upload avec bouton personnalisé -->
-                                <form method="POST" action="{{ url_for('upload_producer_file', project_id=project_id) }}" enctype="multipart/form-data" style="margin-bottom: 10px;" id="form_producer_{{ producer_block.id }}">
+
+                                <form method="POST" enctype="multipart/form-data" style="margin-bottom: 10px;" id="form_producer_{{ producer_block.id }}">
                                     <input type="hidden" name="prod_name" value="{{ producer_block.prod_name }}">
                                     <input type="hidden" name="id" value="{{ producer_block.id }}">
-                                    
+
                                     <div class="file-upload-container">
-                                        <!-- Input file caché -->
                                         <input type="file" name="file" id="file_producer_{{ producer_block.id }}" class="custom-file-input" onchange="handleProducerFileSelect(this, {{ producer_block.id }});" accept=".csv">
-                                        
-                                        <!-- Bouton personnalisé -->
-                                        <label for="file_producer_{{ producer_block.id }}" class="custom-file-button">
-                                            Choisir fichier
-                                        </label>
-                                        
-                                        <!-- Zone d'affichage du statut -->
-                                        <div id="status_producer_{{ producer_block.id }}" 
+                                        <label for="file_producer_{{ producer_block.id }}" class="custom-file-button">Choisir fichier</label>
+                                        <div id="status_producer_{{ producer_block.id }}"
                                              class="file-status-display {% if producer_block.has_file() %}file-status-has-file{% else %}file-status-no-file{% endif %}"
                                              {% if producer_block.has_file() %}title="{{ producer_block.get_file_name() }}"{% endif %}>
                                             {% if producer_block.has_file() %}
@@ -374,25 +266,15 @@ html {
                                         <button onclick="deleteConsumer({{ consumer_block.id }})" class="btn btn-danger" style="font-size: 12px; padding: 4px 8px;">Supprimer</button>
                                     </div>
                                 </div>
-                                
-                                <!-- Formulaire d'upload avec bouton personnalisé -->
-                                <form method="POST" action="{{ url_for('upload_consumer_file', project_id=project_id) }}" enctype="multipart/form-data" style="margin-bottom: 10px;" id="form_consumer_{{ consumer_block.id }}">
+
+                                <form method="POST" enctype="multipart/form-data" style="margin-bottom: 10px;" id="form_consumer_{{ consumer_block.id }}">
                                     <input type="hidden" name="cons_name" value="{{ consumer_block.cons_name }}">
                                     <input type="hidden" name="id" value="{{ consumer_block.id }}">
-                                    <input type="hidden" name="priority" value="{{ consumer_block.priority }}">
-                                    <input type="hidden" name="ratio" value="{{ consumer_block.ratio }}">
-                                    
+
                                     <div class="file-upload-container">
-                                        <!-- Input file caché -->
                                         <input type="file" name="file" id="file_consumer_{{ consumer_block.id }}" class="custom-file-input" onchange="handleConsumerFileSelect(this, {{ consumer_block.id }});" accept=".csv">
-                                        
-                                        <!-- Bouton personnalisé -->
-                                        <label for="file_consumer_{{ consumer_block.id }}" class="custom-file-button">
-                                            Choisir fichier
-                                        </label>
-                                        
-                                        <!-- Zone d'affichage du statut -->
-                                        <div id="status_consumer_{{ consumer_block.id }}" 
+                                        <label for="file_consumer_{{ consumer_block.id }}" class="custom-file-button">Choisir fichier</label>
+                                        <div id="status_consumer_{{ consumer_block.id }}"
                                              class="file-status-display {% if consumer_block.has_file() %}file-status-has-file{% else %}file-status-no-file{% endif %}"
                                              {% if consumer_block.has_file() %}title="{{ consumer_block.get_file_name() }}"{% endif %}>
                                             {% if consumer_block.has_file() %}
@@ -421,31 +303,24 @@ html {
                                     </div>
                                 </div>
                             </td>
-                            {% endfor %}
+            {% endfor %}
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            {% else %}
-            <p style="text-align: center; color: #666; font-style: italic;">Aucun consommateur ajouté pour le moment.</p>
-            {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Barre de redimensionnement séparée -->
 <div class="resize-handle" id="resizeHandle"></div>
 
-<!-- Contenu principal -->
 <div class="main-content" id="mainContent">
     <div class="content-grid">
-        <!-- Bloc Configuration et calcul en haut -->
         <div class="grouped-block" style="flex-shrink: 0;">
             <h3 class="block-title" onclick="toggleBlock(this)">Configuration et calcul</h3>
             <div class="block-content">
                 <div style="display: flex; gap: 20px; align-items: start;">
-                    <!-- Partie gauche: Configuration -->
                     <div style="flex: 1;">
                         <div style="margin-bottom: 10px;">
                             <h4 style="margin-bottom: 5px;">Type de clés de répartition:</h4>
@@ -456,16 +331,14 @@ html {
                                 <option value="static">Statique</option>
                             </select>
                         </div>
-                        <form action="{{ url_for('compute_repartition_keys', project_id=project_id) }}" method="POST" onsubmit="return computeRepartitionKeys(event, this);">
+                        <form id="computeForm">
                             <input type="hidden" name="cles" id="cles_hidden" value="default">
                             <button type="submit" class="btn btn-primary" style="width: 100%;">Calculer les clés de répartitions</button>
                         </form>
                     </div>
 
-                    <!-- Partie droite: Indicateurs -->
                     <div style="flex: 1; padding-left: 20px; border-left: 1px solid #ddd;">
                         <h4 style="margin-bottom: 10px; font-size: 14px;">Indicateurs</h4>
-
                         <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                             <tbody>
                                 <tr>
@@ -487,7 +360,6 @@ html {
             </div>
         </div>
 
-        <!-- Bloc Graphique en bas -->
         <div class="grouped-block" style="flex: 1; padding: 10px; display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
             <div id="chart" style="width:100%; height: 100%;"></div>
         </div>
@@ -496,349 +368,502 @@ html {
 
 <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
 <script>
-    const projectId = {{ project_id|tojson }};
-    // Variables globales pour la gestion des chemins
-    let basePath = '';
+// Configuration globale
+const projectId = {{ project_id|tojson|safe }};
+const projectBaseUrl = `/project/${encodeURIComponent(projectId)}`;
 
-    // Fonction pour obtenir le chemin de base de l'application
-    function getBasePath() {
-        if (basePath === '') {
-            const currentPath = window.location.pathname;
-            // Si le chemin contient plus qu'un simple "/", utiliser le chemin actuel
-            if (currentPath !== '/' && currentPath !== '') {
-                basePath = currentPath.endsWith('/') ? currentPath.slice(0, -1) : currentPath;
-            } else {
-                basePath = '';
-            }
-        }
-        return basePath;
+// Classe pour gérer les URLs de manière sécurisée
+class URLManager {
+    constructor(projectId) {
+        this.projectId = projectId;
+        this.baseUrl = `/project/${encodeURIComponent(projectId)}`;
     }
 
-    // Fonction pour construire une URL complète
-    function buildUrl(endpoint) {
-        const base = getBasePath();
+    buildUrl(endpoint) {
+        // Nettoyer l'endpoint
+        endpoint = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
 
-        // Si l'endpoint contient déjà /project/, ne pas le modifier
+        // Ne pas doubler le préfixe project
         if (endpoint.includes('/project/')) {
-            return base === '' ? endpoint : base + endpoint;
-        }
-
-        // Pour les endpoints spécifiques au projet
-        const projectEndpoints = [
-            '/add_consumer',
-            '/add_producer',
-            '/compute_repartition_keys',
-            '/data',
-            '/update_consumer_data',
-            '/upload_consumer_file',
-            '/upload_producer_file',
-            '/delete_consumer/',
-            '/delete_producer/',
-            '/update_consumer/',
-            '/update_producer/'
-        ];
-
-        // Vérifier si c'est un endpoint de projet
-        const isProjectEndpoint = projectEndpoints.some(pe => endpoint.includes(pe));
-
-        if (isProjectEndpoint && projectId) {
-            // Ajouter le préfixe /project/{id}
-            const cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
-            const projectEndpoint = `/project/${projectId}${cleanEndpoint}`;
-            return base === '' ? projectEndpoint : base + projectEndpoint;
-        }
-
-        // Pour les autres endpoints
-        if (base === '') {
             return endpoint;
         }
-        return base + endpoint;
+
+        // Construire l'URL complète
+        return this.baseUrl + endpoint;
     }
 
-    // Fonction pour tronquer intelligemment un nom de fichier
-    function truncateFileName(fileName, maxLength = 18) {
-        if (fileName.length <= maxLength) {
-            return fileName;
+    getDataUrl() {
+        return this.buildUrl('/data');
+    }
+
+    getAddConsumerUrl() {
+        return this.buildUrl('/add_consumer');
+    }
+
+    getAddProducerUrl() {
+        return this.buildUrl('/add_producer');
+    }
+
+    getComputeUrl() {
+        return this.buildUrl('/compute_repartition_keys');
+    }
+
+    getUpdateConsumerDataUrl() {
+        return this.buildUrl('/update_consumer_data');
+    }
+
+    getUploadConsumerFileUrl() {
+        return this.buildUrl('/upload_consumer_file');
+    }
+
+    getUploadProducerFileUrl() {
+        return this.buildUrl('/upload_producer_file');
+    }
+
+    getDeleteConsumerUrl(id) {
+        return this.buildUrl(`/delete_consumer/${encodeURIComponent(id)}`);
+    }
+
+    getDeleteProducerUrl(id) {
+        return this.buildUrl(`/delete_producer/${encodeURIComponent(id)}`);
+    }
+
+    getUpdateConsumerUrl(id) {
+        return this.buildUrl(`/update_consumer/${encodeURIComponent(id)}`);
+    }
+
+    getUpdateProducerUrl(id) {
+        return this.buildUrl(`/update_producer/${encodeURIComponent(id)}`);
+    }
+}
+
+// Instance globale du gestionnaire d'URLs
+const urlManager = new URLManager(projectId);
+
+// Fonctions pour la gestion des fichiers
+function truncateFileName(fileName, maxLength = 18) {
+    if (fileName.length <= maxLength) {
+        return fileName;
+    }
+
+    const lastDotIndex = fileName.lastIndexOf('.');
+    let name = fileName;
+    let extension = '';
+
+    if (lastDotIndex !== -1) {
+        name = fileName.substring(0, lastDotIndex);
+        extension = fileName.substring(lastDotIndex);
+    }
+
+    const availableLength = maxLength - extension.length - 3;
+    if (availableLength <= 0) {
+        return fileName.substring(0, maxLength - 3) + '...';
+    }
+
+    const startLength = Math.ceil(availableLength / 2);
+    const endLength = Math.floor(availableLength / 2);
+
+    const start = name.substring(0, startLength);
+    const end = name.substring(name.length - endLength);
+
+    return start + '...' + end + extension;
+}
+
+function applyFileNameTruncation() {
+    document.querySelectorAll('[id^="status_producer_"]').forEach(element => {
+        const title = element.getAttribute('title');
+        if (title && element.classList.contains('file-status-has-file')) {
+            const truncatedName = truncateFileName(title, 18);
+            element.textContent = truncatedName;
         }
-        
-        // Séparer le nom et l'extension
-        const lastDotIndex = fileName.lastIndexOf('.');
-        let name = fileName;
-        let extension = '';
-        
-        if (lastDotIndex !== -1) {
-            name = fileName.substring(0, lastDotIndex);
-            extension = fileName.substring(lastDotIndex);
+    });
+
+    document.querySelectorAll('[id^="status_consumer_"]').forEach(element => {
+        const title = element.getAttribute('title');
+        if (title && element.classList.contains('file-status-has-file')) {
+            const truncatedName = truncateFileName(title, 18);
+            element.textContent = truncatedName;
         }
-        
-        // Calculer la place disponible pour le nom (en gardant l'extension)
-        const availableLength = maxLength - extension.length - 3; // 3 pour "..."
-        
-        if (availableLength <= 0) {
-            return fileName.substring(0, maxLength - 3) + '...';
+    });
+}
+
+// Fonctions d'édition et suppression
+function editConsumer(id) {
+    window.location.href = urlManager.getUpdateConsumerUrl(id);
+}
+
+function editProducer(id) {
+    window.location.href = urlManager.getUpdateProducerUrl(id);
+}
+
+function deleteConsumer(id) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce consommateur ?')) {
+        window.location.href = urlManager.getDeleteConsumerUrl(id);
+    }
+}
+
+function deleteProducer(id) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce producteur ?')) {
+        window.location.href = urlManager.getDeleteProducerUrl(id);
+    }
+}
+
+// Gestion des fichiers
+function handleProducerFileSelect(input, producerId) {
+    const statusDiv = document.getElementById(`status_producer_${producerId}`);
+    const form = document.getElementById(`form_producer_${producerId}`);
+
+    if (input.files && input.files[0]) {
+        const fileName = input.files[0].name;
+        const truncatedName = truncateFileName(fileName, 18);
+
+        statusDiv.textContent = truncatedName;
+        statusDiv.className = 'file-status-display file-status-has-file';
+        statusDiv.setAttribute('title', fileName);
+
+        uploadProducerFile(form);
+    }
+}
+
+function handleConsumerFileSelect(input, consumerId) {
+    const statusDiv = document.getElementById(`status_consumer_${consumerId}`);
+    const form = document.getElementById(`form_consumer_${consumerId}`);
+
+    if (input.files && input.files[0]) {
+        const fileName = input.files[0].name;
+        const truncatedName = truncateFileName(fileName, 18);
+
+        statusDiv.textContent = truncatedName;
+        statusDiv.className = 'file-status-display file-status-has-file';
+        statusDiv.setAttribute('title', fileName);
+
+        uploadConsumerFile(form);
+    }
+}
+
+// Upload de fichiers
+function uploadProducerFile(form) {
+    const formData = new FormData(form);
+
+    fetch(urlManager.getUploadProducerFileUrl(), {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Fichier producteur uploadé avec succès');
+            showMessage('Fichier producteur uploadé avec succès', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            console.error('Erreur upload producteur:', data.message);
+            showMessage('Erreur: ' + data.message, 'error');
+            window.location.reload();
         }
-        
-        // Prendre le début et la fin du nom
-        const startLength = Math.ceil(availableLength / 2);
-        const endLength = Math.floor(availableLength / 2);
-        
-        const start = name.substring(0, startLength);
-        const end = name.substring(name.length - endLength);
-        
-        return start + '...' + end + extension;
-    }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        showMessage('Erreur lors de l\'upload', 'error');
+        window.location.reload();
+    });
+}
 
-    // Fonction pour appliquer la troncature aux fichiers existants au chargement de la page
-    function applyFileNameTruncation() {
-        // Appliquer aux producteurs
-        document.querySelectorAll('[id^="status_producer_"]').forEach(element => {
-            const title = element.getAttribute('title');
-            if (title && element.classList.contains('file-status-has-file')) {
-                const truncatedName = truncateFileName(title, 18);
-                element.textContent = truncatedName;
-            }
-        });
-        
-        // Appliquer aux consommateurs
-        document.querySelectorAll('[id^="status_consumer_"]').forEach(element => {
-            const title = element.getAttribute('title');
-            if (title && element.classList.contains('file-status-has-file')) {
-                const truncatedName = truncateFileName(title, 18);
-                element.textContent = truncatedName;
-            }
-        });
-    }
+function uploadConsumerFile(form) {
+    const formData = new FormData(form);
 
-    // Fonctions pour l'édition et la suppression
-    function editConsumer(id) {
-        const url = buildUrl('/update_consumer/' + id);
-        console.log('Redirection vers:', url);
-        window.location.href = url;
-    }
-
-    function editProducer(id) {
-        const url = buildUrl('/update_producer/' + id);
-        console.log('Redirection vers:', url);
-        window.location.href = url;
-    }
-
-    function deleteConsumer(id) {
-        if (confirm('Êtes-vous sûr de vouloir supprimer ce consommateur ?')) {
-            const url = buildUrl('/delete_consumer/' + id);
-            console.log('Redirection vers:', url);
-            window.location.href = url;
+    fetch(urlManager.getUploadConsumerFileUrl(), {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Fichier consommateur uploadé avec succès');
+            showMessage('Fichier consommateur uploadé avec succès', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            console.error('Erreur upload consommateur:', data.message);
+            showMessage('Erreur: ' + data.message, 'error');
+            window.location.reload();
         }
-    }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        showMessage('Erreur lors de l\'upload', 'error');
+        window.location.reload();
+    });
+}
 
-    function deleteProducer(id) {
-        if (confirm('Êtes-vous sûr de vouloir supprimer ce producteur ?')) {
-            const url = buildUrl('/delete_producer/' + id);
-            console.log('Redirection vers:', url);
-            window.location.href = url;
+// Mise à jour des données consommateur
+function updateConsumerData(element) {
+    const consumerId = element.getAttribute('data-consumer-id');
+    const producerIndex = element.getAttribute('data-producer-index');
+    const fieldType = element.getAttribute('data-field-type');
+    const value = element.textContent.trim();
+
+    const data = {
+        consumer_id: consumerId,
+        producer_index: parseInt(producerIndex),
+        field_type: fieldType,
+        value: parseInt(value) || 0
+    };
+
+    fetch(urlManager.getUpdateConsumerDataUrl(), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Données mises à jour avec succès');
+            showMessage('Valeur mise à jour', 'success');
+        } else {
+            console.error('Erreur lors de la mise à jour:', data.message);
+            showMessage('Erreur: ' + data.message, 'error');
         }
-    }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        showMessage('Erreur lors de la mise à jour', 'error');
+    });
+}
 
-    // Fonctions pour gérer la sélection de fichiers avec troncature intelligente
-    function handleProducerFileSelect(input, producerId) {
-        const statusDiv = document.getElementById(`status_producer_${producerId}`);
-        const form = document.getElementById(`form_producer_${producerId}`);
-        
-        if (input.files && input.files[0]) {
-            const fileName = input.files[0].name;
-            const truncatedName = truncateFileName(fileName, 18);
-            
-            // Mettre à jour l'affichage avec le nom tronqué
-            statusDiv.textContent = truncatedName;
-            statusDiv.className = 'file-status-display file-status-has-file';
-            statusDiv.setAttribute('title', fileName); // Tooltip avec le nom complet
-            
-            // Uploader le fichier
-            uploadProducerFile(form);
-        }
-    }
+// Gestion du sidebar
+function initializeSidebar() {
+    const sidebar = document.getElementById('tableauSidebar');
+    const resizeHandle = document.getElementById('resizeHandle');
+    const mainContent = document.getElementById('mainContent');
 
-    function handleConsumerFileSelect(input, consumerId) {
-        const statusDiv = document.getElementById(`status_consumer_${consumerId}`);
-        const form = document.getElementById(`form_consumer_${consumerId}`);
-        
-        if (input.files && input.files[0]) {
-            const fileName = input.files[0].name;
-            const truncatedName = truncateFileName(fileName, 18);
-            
-            // Mettre à jour l'affichage avec le nom tronqué
-            statusDiv.textContent = truncatedName;
-            statusDiv.className = 'file-status-display file-status-has-file';
-            statusDiv.setAttribute('title', fileName); // Tooltip avec le nom complet
-            
-            // Uploader le fichier
-            uploadConsumerFile(form);
-        }
-    }
-
-    // Système de redimensionnement du panneau latéral
     let isResizing = false;
     let currentSidebarWidth = localStorage.getItem('sidebarWidth') || 50;
 
-    function initializeSidebar() {
-        const sidebar = document.getElementById('tableauSidebar');
-        const resizeHandle = document.getElementById('resizeHandle');
-        const mainContent = document.getElementById('mainContent');
+    setSidebarWidth(parseInt(currentSidebarWidth));
 
-        // Restaurer la largeur sauvegardée
-        setSidebarWidth(parseInt(currentSidebarWidth));
+    resizeHandle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        document.addEventListener('mousemove', handleResize);
+        document.addEventListener('mouseup', stopResize);
+        e.preventDefault();
+    });
 
-        resizeHandle.addEventListener('mousedown', (e) => {
-            isResizing = true;
-            document.addEventListener('mousemove', handleResize);
-            document.addEventListener('mouseup', stopResize);
-            e.preventDefault();
-        });
+    function handleResize(e) {
+        if (!isResizing) return;
 
-        function handleResize(e) {
-            if (!isResizing) return;
+        const newWidth = e.clientX;
+        const minWidth = 50;
+        const maxWidth = window.innerWidth * 0.8;
+        const width = Math.max(minWidth, Math.min(maxWidth, newWidth));
 
-            const newWidth = e.clientX;
+        setSidebarWidth(width);
+    }
 
-            // Limiter la largeur entre 50px et 80% de l'écran
-            const minWidth = 50;
-            const maxWidth = window.innerWidth * 0.8;
-            const width = Math.max(minWidth, Math.min(maxWidth, newWidth));
-
-            setSidebarWidth(width);
-        }
-
-        function stopResize() {
-            isResizing = false;
-            document.removeEventListener('mousemove', handleResize);
-            document.removeEventListener('mouseup', stopResize);
-
-            // Sauvegarder la largeur
-            localStorage.setItem('sidebarWidth', currentSidebarWidth);
-        }
+    function stopResize() {
+        isResizing = false;
+        document.removeEventListener('mousemove', handleResize);
+        document.removeEventListener('mouseup', stopResize);
+        localStorage.setItem('sidebarWidth', currentSidebarWidth);
     }
 
     function setSidebarWidth(width) {
         currentSidebarWidth = width;
-        const sidebar = document.getElementById('tableauSidebar');
-        const resizeHandle = document.getElementById('resizeHandle');
-        const mainContent = document.getElementById('mainContent');
-
         sidebar.style.width = width + 'px';
         document.documentElement.style.setProperty('--sidebar-width', width + 'px');
 
-        // Afficher le contenu si la largeur dépasse 200px
         if (width > 200) {
             sidebar.classList.add('expanded');
         } else {
             sidebar.classList.remove('expanded');
         }
 
-        // Redimensionner le graphique
         setTimeout(() => {
             if (window.Plotly && document.getElementById('chart').hasChildNodes()) {
                 Plotly.Plots.resize('chart');
             }
         }, 50);
     }
+}
 
-    function toggleBlock(titleElement) {
-        const content = titleElement.nextElementSibling;
-        const isCollapsed = content.classList.contains('collapsed');
+// Toggle des blocs
+function toggleBlock(titleElement) {
+    const content = titleElement.nextElementSibling;
+    const isCollapsed = content.classList.contains('collapsed');
 
-        if (isCollapsed) {
-            // Expand
-            content.style.maxHeight = content.scrollHeight + 'px';
-            content.classList.remove('collapsed');
-            titleElement.classList.remove('collapsed');
-        } else {
-            // Collapse
-            content.style.maxHeight = content.scrollHeight + 'px';
-            // Force reflow
-            content.offsetHeight;
-            content.style.maxHeight = '0px';
-            content.classList.add('collapsed');
-            titleElement.classList.add('collapsed');
-        }
+    if (isCollapsed) {
+        content.style.maxHeight = content.scrollHeight + 'px';
+        content.classList.remove('collapsed');
+        titleElement.classList.remove('collapsed');
+    } else {
+        content.style.maxHeight = content.scrollHeight + 'px';
+        content.offsetHeight;
+        content.style.maxHeight = '0px';
+        content.classList.add('collapsed');
+        titleElement.classList.add('collapsed');
     }
+}
 
-    function handleKeyTypeChange() {
-        const keyType = document.getElementById('cle').value;
-        const priorityFields = document.querySelectorAll('.priority-field');
-        const ratioFields = document.querySelectorAll('.ratio-field');
+// Gestion du type de clés
+function handleKeyTypeChange() {
+    const keyType = document.getElementById('cle').value;
+    const priorityFields = document.querySelectorAll('.priority-field');
+    const ratioFields = document.querySelectorAll('.ratio-field');
 
-        // Mettre à jour le champ caché du formulaire
-        document.getElementById('cles_hidden').value = keyType;
+    document.getElementById('cles_hidden').value = keyType;
 
-        if (keyType === 'default') {
-            // Désactiver les champs Priorité et Ratio
-            priorityFields.forEach(field => {
-                field.classList.add('disabled');
-                field.contentEditable = 'false';
-            });
-            ratioFields.forEach(field => {
-                field.classList.add('disabled');
-                field.contentEditable = 'false';
-            });
-        } else {
-            // Activer les champs Priorité et Ratio
-            priorityFields.forEach(field => {
-                field.classList.remove('disabled');
-                field.contentEditable = 'true';
-            });
-            ratioFields.forEach(field => {
-                field.classList.remove('disabled');
-                field.contentEditable = 'true';
-            });
-        }
-    }
-
-    // Fonction pour mettre à jour les données du consommateur
-    function updateConsumerData(element) {
-        const consumerId = element.getAttribute('data-consumer-id');
-        const producerIndex = element.getAttribute('data-producer-index');
-        const fieldType = element.getAttribute('data-field-type');
-        const value = element.textContent.trim();
-
-        const data = {
-            consumer_id: consumerId,
-            producer_index: parseInt(producerIndex),
-            field_type: fieldType,
-            value: parseInt(value) || 0
-        };
-
-        const url = buildUrl('/update_consumer_data');
-
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log('Données mises à jour avec succès');
-                showMessage('Valeur mise à jour', 'success');
-            } else {
-                console.error('Erreur lors de la mise à jour:', data.message);
-                showMessage('Erreur: ' + data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Erreur:', error);
-            showMessage('Erreur lors de la mise à jour', 'error');
+    if (keyType === 'default') {
+        priorityFields.forEach(field => {
+            field.classList.add('disabled');
+            field.contentEditable = 'false';
+        });
+        ratioFields.forEach(field => {
+            field.classList.add('disabled');
+            field.contentEditable = 'false';
+        });
+    } else {
+        priorityFields.forEach(field => {
+            field.classList.remove('disabled');
+            field.contentEditable = 'true';
+        });
+        ratioFields.forEach(field => {
+            field.classList.remove('disabled');
+            field.contentEditable = 'true';
         });
     }
+}
 
-    // Fonction pour ajouter un producteur
-    function addProducerBlock(event, form) {
-        event.preventDefault();
+// Chargement du graphique
+function loadChart() {
+    console.log('Chargement du graphique...');
 
-        const formData = new FormData(form);
-        const url = buildUrl('/add_producer');
+    const dataUrl = urlManager.getDataUrl();
+    console.log('URL de données:', dataUrl);
 
-        fetch(url, {
+    fetch(dataUrl)
+        .then(response => {
+            console.log('Response status:', response.status);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(fig => {
+            console.log('Données reçues:', fig);
+
+            if (!fig.data || fig.data.length === 0) {
+                console.log('Aucune donnée de graphique reçue');
+                const emptyLayout = {
+                    title: 'Aucune donnée disponible',
+                    xaxis: {title: 'Date'},
+                    yaxis: {title: 'Autoconsommation (kWh)'},
+                    annotations: [{
+                        x: 0.5, y: 0.5,
+                        xref: 'paper', yref: 'paper',
+                        text: 'Veuillez calculer les clés de répartition',
+                        showarrow: false,
+                        font: {size: 16, color: '#666'},
+                        xanchor: 'center', yanchor: 'middle'
+                    }]
+                };
+                Plotly.newPlot('chart', [], emptyLayout, {responsive: true});
+                return;
+            }
+
+            const config = {
+                responsive: true,
+                displayModeBar: true,
+                displaylogo: false,
+                modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
+            };
+
+            const layout = {
+                ...fig.layout,
+                autosize: true,
+                margin: { l: 50, r: 50, t: 50, b: 50 },
+                font: { size: 12 }
+            };
+
+            console.log(`Création du graphique avec ${fig.data.length} traces`);
+
+            Plotly.newPlot('chart', fig.data, layout, config)
+                .then(() => {
+                    console.log('Graphique créé avec succès');
+
+                    if (fig.indicators) {
+                        document.getElementById('auto_consumption_rate').textContent = fig.indicators.auto_consumption_rate + '%';
+                        document.getElementById('auto_production_rate_global').textContent = fig.indicators.auto_production_rate_global + '%';
+                        document.getElementById('coverage_rate').textContent = fig.indicators.coverage_rate + '%';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur lors de la création du graphique Plotly:', error);
+                    showMessage('Erreur lors de l\'affichage du graphique', 'error');
+                });
+        })
+        .catch(error => {
+            console.error('Erreur lors du chargement des données:', error);
+            console.error('Détails de l\'erreur:', error.message);
+            // Ne pas afficher de message d'erreur si c'est juste qu'il n'y a pas encore de données
+            if (error.message.includes('404')) {
+                console.log('Pas encore de données pour ce projet');
+            } else {
+                showMessage('Erreur lors du chargement des données du graphique', 'error');
+            }
+        });
+}
+
+// Messages utilisateur
+function showMessage(message, type) {
+    const notification = document.createElement('div');
+    notification.style.position = 'fixed';
+    notification.style.top = '20px';
+    notification.style.right = '20px';
+    notification.style.padding = '10px 15px';
+    notification.style.borderRadius = '5px';
+    notification.style.color = 'white';
+    notification.style.zIndex = '10000';
+    notification.style.fontSize = '12px';
+
+    if (type === 'success') {
+        notification.style.backgroundColor = '#28a745';
+    } else {
+        notification.style.backgroundColor = '#dc3545';
+    }
+
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 3000);
+}
+
+// Initialisation des formulaires
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM chargé, initialisation...');
+    console.log('Project ID:', projectId);
+    console.log('Base URL:', projectBaseUrl);
+
+    handleKeyTypeChange();
+    initializeSidebar();
+    loadChart();
+    applyFileNameTruncation();
+
+    // Gestionnaire pour l'ajout de producteur
+    document.getElementById('addProducerForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+
+        fetch(urlManager.getAddProducerUrl(), {
             method: 'POST',
             body: formData
         })
@@ -855,18 +880,15 @@ html {
             console.error('Erreur:', error);
             showMessage('Erreur lors de l\'ajout', 'error');
         });
+    });
 
-        return false;
-    }
+    // Gestionnaire pour l'ajout de consommateur
+    document.getElementById('addConsumerForm').addEventListener('submit', function(e) {
+        e.preventDefault();
 
-    // Fonction pour ajouter un consommateur
-    function addConsumerBlock(event, form) {
-        event.preventDefault();
+        const formData = new FormData(this);
 
-        const formData = new FormData(form);
-        const url = buildUrl('/add_consumer');
-
-        fetch(url, {
+        fetch(urlManager.getAddConsumerUrl(), {
             method: 'POST',
             body: formData
         })
@@ -883,22 +905,20 @@ html {
             console.error('Erreur:', error);
             showMessage('Erreur lors de l\'ajout', 'error');
         });
+    });
 
-        return false;
-    }
+    // Gestionnaire pour le calcul des clés
+    document.getElementById('computeForm').addEventListener('submit', function(e) {
+        e.preventDefault();
 
-    function computeRepartitionKeys(event, form) {
-        event.preventDefault();
-
-        const submitButton = form.querySelector('button[type="submit"]');
+        const submitButton = this.querySelector('button[type="submit"]');
         const originalText = submitButton.textContent;
         submitButton.disabled = true;
         submitButton.textContent = 'Calcul en cours...';
 
-        const formData = new FormData(form);
-        const url = buildUrl('/compute_repartition_keys');
+        const formData = new FormData(this);
 
-        fetch(url, {
+        fetch(urlManager.getComputeUrl(), {
             method: 'POST',
             body: formData
         })
@@ -928,199 +948,17 @@ html {
             submitButton.disabled = false;
             submitButton.textContent = originalText;
         });
+    });
+});
 
-        return false;
-    }
-
-    // Fonction pour charger le graphique - VERSION AMÉLIORÉE
-    function loadChart() {
-        console.log('Chargement du graphique...');
-
-        const dataUrl = buildUrl('/data');
-
-        console.log('URL de données:', dataUrl);
-
-        fetch(dataUrl)
-            .then(response => {
-                console.log('Response status:', response.status);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(fig => {
-                console.log('Données reçues:', fig);
-
-                if (!fig.data || fig.data.length === 0) {
-                    console.log('Aucune donnée de graphique reçue');
-                    const emptyLayout = {
-                        title: 'Aucune donnée disponible',
-                        xaxis: {title: 'Date'},
-                        yaxis: {title: 'Autoconsommation (kWh)'},
-                        annotations: [{
-                            x: 0.5, y: 0.5,
-                            xref: 'paper', yref: 'paper',
-                            text: 'Veuillez calculer les clés de répartition',
-                            showarrow: false,
-                            font: {size: 16, color: '#666'},
-                            xanchor: 'center', yanchor: 'middle'
-                        }]
-                    };
-                    Plotly.newPlot('chart', [], emptyLayout, {responsive: true});
-                    return;
-                }
-
-                const config = {
-                    responsive: true,
-                    displayModeBar: true,
-                    displaylogo: false,
-                    modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
-                };
-
-                const layout = {
-                    ...fig.layout,
-                    autosize: true,
-                    margin: { l: 50, r: 50, t: 50, b: 50 },
-                    font: { size: 12 }
-                };
-
-                console.log(`Création du graphique avec ${fig.data.length} traces`);
-
-                Plotly.newPlot('chart', fig.data, layout, config)
-                    .then(() => {
-                        console.log('Graphique créé avec succès');
-
-                        if (fig.indicators) {
-                            document.getElementById('auto_consumption_rate').textContent = fig.indicators.auto_consumption_rate + '%';
-                            document.getElementById('auto_production_rate_global').textContent = fig.indicators.auto_production_rate_global + '%';
-                            document.getElementById('coverage_rate').textContent = fig.indicators.coverage_rate + '%';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Erreur lors de la création du graphique Plotly:', error);
-                        showMessage('Erreur lors de l\'affichage du graphique', 'error');
-                    });
-            })
-            .catch(error => {
-                console.error('Erreur lors du chargement des données:', error);
-                console.error('Détails de l\'erreur:', error.message);
-                showMessage('Erreur lors du chargement des données du graphique', 'error');
-            });
-    }
-
-    // Fonction pour upload de fichier consommateur avec rechargement
-    function uploadConsumerFile(form) {
-        const formData = new FormData(form);
-
-        fetch(form.action, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log('Fichier consommateur uploadé avec succès');
-                showMessage('Fichier consommateur uploadé avec succès', 'success');
-                // Recharger la page pour afficher le nom du fichier
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-            } else {
-                console.error('Erreur upload consommateur:', data.message);
-                showMessage('Erreur: ' + data.message, 'error');
-                // Remettre l'affichage précédent en cas d'erreur
-                window.location.reload();
-            }
-        })
-        .catch(error => {
-            console.error('Erreur:', error);
-            showMessage('Erreur lors de l\'upload', 'error');
-            // Remettre l'affichage précédent en cas d'erreur
-            window.location.reload();
-        });
-    }
-
-    // Fonction pour upload de fichier producteur avec rechargement
-    function uploadProducerFile(form) {
-        const formData = new FormData(form);
-
-        fetch(form.action, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log('Fichier producteur uploadé avec succès');
-                showMessage('Fichier producteur uploadé avec succès', 'success');
-                // Recharger la page pour afficher le nom du fichier
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-            } else {
-                console.error('Erreur upload producteur:', data.message);
-                showMessage('Erreur: ' + data.message, 'error');
-                // Remettre l'affichage précédent en cas d'erreur
-                window.location.reload();
-            }
-        })
-        .catch(error => {
-            console.error('Erreur:', error);
-            showMessage('Erreur lors de l\'upload', 'error');
-            // Remettre l'affichage précédent en cas d'erreur
-            window.location.reload();
-        });
-    }
-
-    // Fonction utilitaire pour afficher des messages
-    function showMessage(message, type) {
-        // Créer un élément de notification temporaire
-        const notification = document.createElement('div');
-        notification.style.position = 'fixed';
-        notification.style.top = '20px';
-        notification.style.right = '20px';
-        notification.style.padding = '10px 15px';
-        notification.style.borderRadius = '5px';
-        notification.style.color = 'white';
-        notification.style.zIndex = '10000';
-        notification.style.fontSize = '12px';
-
-        if (type === 'success') {
-            notification.style.backgroundColor = '#28a745';
-        } else {
-            notification.style.backgroundColor = '#dc3545';
-        }
-
-        notification.textContent = message;
-        document.body.appendChild(notification);
-
-        // Supprimer la notification après 3 secondes
+// Gestion du redimensionnement de la fenêtre
+window.addEventListener('resize', function() {
+    if (window.Plotly && document.getElementById('chart').hasChildNodes()) {
         setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 3000);
+            Plotly.Plots.resize('chart');
+        }, 100);
     }
-
-    // Initialiser l'état des champs au chargement de la page
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('DOM chargé, initialisation...');
-        console.log('Base path détecté:', getBasePath());
-        handleKeyTypeChange();
-        initializeSidebar();
-        loadChart(); // Charger le graphique au démarrage
-        applyFileNameTruncation(); // Appliquer la troncature aux fichiers existants
-    });
-
-    // Gestion du redimensionnement de la fenêtre
-    window.addEventListener('resize', function() {
-        if (window.Plotly && document.getElementById('chart').hasChildNodes()) {
-            setTimeout(() => {
-                Plotly.Plots.resize('chart');
-            }, 100);
-        }
-    });
+});
 </script>
 
 {% endblock %}

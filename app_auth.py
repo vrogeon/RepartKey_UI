@@ -568,5 +568,278 @@ def chart_data(project_id):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
+# Routes pour l'upload de fichiers
+@app.route('/project/<int:project_id>/upload_consumer_file', methods=['POST'])
+@login_required
+def upload_consumer_file(project_id):
+    project = Project.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Non autorisé'})
+
+    try:
+        cons_name = request.form.get('cons_name')
+        consumer_id = request.form.get('id')
+
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': 'Aucun fichier sélectionné'})
+
+        file = request.files['file']
+
+        if file.filename == '':
+            return jsonify({'success': False, 'message': 'Aucun fichier sélectionné'})
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+
+            # Créer le dossier du projet si nécessaire
+            project_upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], f'project_{project_id}')
+            if not os.path.exists(project_upload_folder):
+                os.makedirs(project_upload_folder, exist_ok=True)
+
+            filepath = os.path.join(project_upload_folder, filename)
+            file.save(filepath)
+
+            if not os.path.exists(filepath):
+                return jsonify({'success': False, 'message': 'Le fichier n\'a pas pu être sauvegardé'})
+
+            # Récupérer le ConsumerBlock et son objet
+            consumer_block = ConsumerBlock.query.get(int(consumer_id))
+            if not consumer_block or consumer_block.project_id != project_id:
+                return jsonify({'success': False, 'message': 'Consommateur non trouvé'})
+
+            if consumer_block.consumer_object:
+                consumer = consumer_block.consumer_object.get_consumer_object()
+                if consumer:
+                    consumer.read_consumption(filepath)
+                    consumer_block.consumer_object.file_path = filepath
+                    consumer_block.consumer_object.set_consumer_object(consumer)
+                    db.session.commit()
+                    return jsonify({'success': True, 'message': 'Fichier uploadé avec succès'})
+
+            return jsonify({'success': False, 'message': 'Objet consommateur non trouvé'})
+        else:
+            return jsonify({'success': False, 'message': 'Type de fichier non autorisé'})
+
+    except Exception as e:
+        print(f"Erreur dans upload_consumer_file: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Erreur serveur: {str(e)}'})
+
+
+@app.route('/project/<int:project_id>/upload_producer_file', methods=['POST'])
+@login_required
+def upload_producer_file(project_id):
+    project = Project.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Non autorisé'})
+
+    try:
+        prod_name = request.form.get('prod_name')
+        producer_id = request.form.get('id')
+
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': 'Aucun fichier sélectionné'})
+
+        file = request.files['file']
+
+        if file.filename == '':
+            return jsonify({'success': False, 'message': 'Aucun fichier sélectionné'})
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+
+            # Créer le dossier du projet si nécessaire
+            project_upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], f'project_{project_id}')
+            if not os.path.exists(project_upload_folder):
+                os.makedirs(project_upload_folder, exist_ok=True)
+
+            filepath = os.path.join(project_upload_folder, filename)
+            file.save(filepath)
+
+            if not os.path.exists(filepath):
+                return jsonify({'success': False, 'message': 'Le fichier n\'a pas pu être sauvegardé'})
+
+            # Récupérer le ProducerBlock et son objet
+            producer_block = ProducerBlock.query.get(int(producer_id))
+            if not producer_block or producer_block.project_id != project_id:
+                return jsonify({'success': False, 'message': 'Producteur non trouvé'})
+
+            if producer_block.producer_object:
+                producer = producer_block.producer_object.get_producer_object()
+                if producer:
+                    producer.read_production(filepath)
+                    producer_block.producer_object.file_path = filepath
+                    producer_block.producer_object.set_producer_object(producer)
+                    db.session.commit()
+                    return jsonify({'success': True, 'message': 'Fichier uploadé avec succès', 'filename': filename})
+
+            return jsonify({'success': False, 'message': 'Objet producteur non trouvé'})
+        else:
+            return jsonify({'success': False,
+                            'message': f'Type de fichier non autorisé. Types autorisés: {", ".join(ALLOWED_EXTENSIONS)}'})
+
+    except Exception as e:
+        print(f"Erreur dans upload_producer_file: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Erreur serveur: {str(e)}'})
+
+
+# Routes pour la mise à jour des données
+@app.route('/project/<int:project_id>/update_consumer_data', methods=['POST'])
+@login_required
+def update_consumer_data(project_id):
+    project = Project.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Non autorisé'})
+
+    try:
+        data = request.get_json()
+        consumer_id = data.get('consumer_id')
+        producer_index = data.get('producer_index')
+        field_type = data.get('field_type')
+        value = data.get('value')
+
+        consumer_block = ConsumerBlock.query.get_or_404(consumer_id)
+
+        if consumer_block.project_id != project_id:
+            return jsonify({'success': False, 'message': 'Non autorisé'})
+
+        if field_type == 'priority':
+            consumer_block.set_priority_for_producer(producer_index, value)
+        elif field_type == 'ratio':
+            consumer_block.set_ratio_for_producer(producer_index, value)
+
+        return jsonify({'success': True, 'message': 'Données mises à jour'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+# Routes pour la suppression
+@app.route('/project/<int:project_id>/delete_consumer/<int:consumer_id>')
+@login_required
+def delete_consumer(project_id, consumer_id):
+    project = Project.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        flash('Non autorisé', 'error')
+        return redirect(url_for('project_dashboard', project_id=project_id))
+
+    consumer_block = ConsumerBlock.query.get_or_404(consumer_id)
+
+    if consumer_block.project_id != project_id:
+        flash('Non autorisé', 'error')
+        return redirect(url_for('project_dashboard', project_id=project_id))
+
+    try:
+        db.session.delete(consumer_block)
+        db.session.commit()
+        flash('Consommateur supprimé avec succès', 'success')
+    except Exception as e:
+        flash(f'Erreur lors de la suppression: {str(e)}', 'error')
+
+    return redirect(url_for('project_dashboard', project_id=project_id))
+
+
+@app.route('/project/<int:project_id>/delete_producer/<int:producer_id>')
+@login_required
+def delete_producer(project_id, producer_id):
+    project = Project.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        flash('Non autorisé', 'error')
+        return redirect(url_for('project_dashboard', project_id=project_id))
+
+    producer_block = ProducerBlock.query.get_or_404(producer_id)
+
+    if producer_block.project_id != project_id:
+        flash('Non autorisé', 'error')
+        return redirect(url_for('project_dashboard', project_id=project_id))
+
+    try:
+        # Obtenir l'index du producteur avant de le supprimer
+        producer_index = -1
+        all_producers = project.producer_blocks.order_by(ProducerBlock.id).all()
+        for idx, prod in enumerate(all_producers):
+            if prod.id == producer_id:
+                producer_index = idx
+                break
+
+        db.session.delete(producer_block)
+        db.session.commit()
+
+        # Mettre à jour tous les consumers
+        if producer_index >= 0:
+            update_all_consumers_for_deleted_producer(project_id, producer_index)
+
+        flash('Producteur supprimé avec succès', 'success')
+    except Exception as e:
+        flash(f'Erreur lors de la suppression: {str(e)}', 'error')
+
+    return redirect(url_for('project_dashboard', project_id=project_id))
+
+
+# Routes pour l'édition
+@app.route('/project/<int:project_id>/update_consumer/<int:consumer_id>', methods=['GET', 'POST'])
+@login_required
+def update_consumer(project_id, consumer_id):
+    project = Project.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        flash('Non autorisé', 'error')
+        return redirect(url_for('project_dashboard', project_id=project_id))
+
+    consumer_block = ConsumerBlock.query.get_or_404(consumer_id)
+
+    if consumer_block.project_id != project_id:
+        flash('Non autorisé', 'error')
+        return redirect(url_for('project_dashboard', project_id=project_id))
+
+    if request.method == 'POST':
+        consumer_block.cons_name = request.form['cons_name']
+
+        try:
+            db.session.commit()
+            flash('Consommateur mis à jour avec succès', 'success')
+            return redirect(url_for('project_dashboard', project_id=project_id))
+        except Exception as e:
+            flash(f'Erreur lors de la mise à jour: {str(e)}', 'error')
+
+    return render_template('update_consumer.html', consumer_block=consumer_block, project_id=project_id)
+
+
+@app.route('/project/<int:project_id>/update_producer/<int:producer_id>', methods=['GET', 'POST'])
+@login_required
+def update_producer(project_id, producer_id):
+    project = Project.query.get_or_404(project_id)
+
+    if project.user_id != current_user.id:
+        flash('Non autorisé', 'error')
+        return redirect(url_for('project_dashboard', project_id=project_id))
+
+    producer_block = ProducerBlock.query.get_or_404(producer_id)
+
+    if producer_block.project_id != project_id:
+        flash('Non autorisé', 'error')
+        return redirect(url_for('project_dashboard', project_id=project_id))
+
+    if request.method == 'POST':
+        producer_block.prod_name = request.form['prod_name']
+
+        try:
+            db.session.commit()
+            flash('Producteur mis à jour avec succès', 'success')
+            return redirect(url_for('project_dashboard', project_id=project_id))
+        except Exception as e:
+            flash(f'Erreur lors de la mise à jour: {str(e)}', 'error')
+
+    return render_template('update_producer.html', producer_block=producer_block, project_id=project_id)
+
 if __name__ == '__main__':
     app.run(debug=True)
