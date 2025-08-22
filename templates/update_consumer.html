@@ -16,19 +16,12 @@
     // Fonction pour obtenir le chemin de base de l'application
     function getBasePath() {
         const currentPath = window.location.pathname;
-        const pathParts = currentPath.split('/');
-        
-        const updateIndex = pathParts.findIndex(part => part === 'update_consumer');
-        
-        if (updateIndex > 0) {
-            return pathParts.slice(0, updateIndex).join('/');
-        }
-        
-        // Fallback: si on ne trouve pas "update_consumer", essayer de détecter autrement
+
+        // Détection pour cPanel
         if (currentPath.includes('/RepartElec/')) {
             return '/RepartElec';
         }
-        
+
         return '';
     }
 
@@ -41,9 +34,10 @@
         return base + endpoint;
     }
 
-    // Fonction pour retourner à la page principale
+    // Fonction pour retourner à la page du projet
     function goBack() {
-        const homeUrl = buildUrl('/');
+        const projectId = {{ project_id|default(consumer_block.project_id)|tojson }};
+        const homeUrl = buildUrl(`/project/${projectId}`);
         console.log('Retour vers:', homeUrl);
         window.location.href = homeUrl;
     }
@@ -51,12 +45,14 @@
     // Au chargement de la page, définir l'action du formulaire
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('updateConsumerForm');
-        const correctAction = buildUrl('/update_consumer/{{ consumer_block.id }}');
-        
+        const projectId = {{ project_id|default(consumer_block.project_id)|tojson }};
+        const consumerId = {{ consumer_block.id|tojson }};
+        const correctAction = buildUrl(`/project/${projectId}/update_consumer/${consumerId}`);
+
         console.log('Chemin actuel:', window.location.pathname);
         console.log('Base path détecté:', getBasePath());
         console.log('Action du formulaire définie à:', correctAction);
-        
+
         // Définir l'action du formulaire avec le bon chemin
         form.action = correctAction;
     });

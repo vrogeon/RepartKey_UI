@@ -660,13 +660,25 @@ body {
 <script>
 // Configuration globale
 const projectId = {{ project_id|tojson|safe }};
-const projectBaseUrl = `/project/${encodeURIComponent(projectId)}`;
+
+// Détecter le chemin de base de l'application (pour cPanel)
+function getAppBasePath() {
+    const path = window.location.pathname;
+    if (path.includes('/RepartElec/')) {
+        return '/RepartElec';
+    }
+    return '';
+}
+
+const appBasePath = getAppBasePath();
+const projectBaseUrl = `${appBasePath}/project/${encodeURIComponent(projectId)}`;
 
 // Classe pour gérer les URLs de manière sécurisée
 class URLManager {
     constructor(projectId) {
         this.projectId = projectId;
-        this.baseUrl = `/project/${encodeURIComponent(projectId)}`;
+        this.appBasePath = appBasePath;  // Ajouter cette ligne
+        this.baseUrl = `${this.appBasePath}/project/${encodeURIComponent(projectId)}`;  // Modifier cette ligne
     }
 
     buildUrl(endpoint) {
@@ -779,22 +791,22 @@ function applyFileNameTruncation() {
 
 // Fonctions d'édition et suppression
 function editConsumer(id) {
-    window.location.href = urlManager.getUpdateConsumerUrl(id);
+    window.location.href = `${appBasePath}/project/${projectId}/update_consumer/${encodeURIComponent(id)}`;
 }
 
 function editProducer(id) {
-    window.location.href = urlManager.getUpdateProducerUrl(id);
+    window.location.href = `${appBasePath}/project/${projectId}/update_producer/${encodeURIComponent(id)}`;
 }
 
 function deleteConsumer(id) {
     if (confirm('Êtes-vous sûr de vouloir supprimer ce consommateur ?')) {
-        window.location.href = urlManager.getDeleteConsumerUrl(id);
+        window.location.href = `${appBasePath}/project/${projectId}/delete_consumer/${encodeURIComponent(id)}`;
     }
 }
 
 function deleteProducer(id) {
     if (confirm('Êtes-vous sûr de vouloir supprimer ce producteur ?')) {
-        window.location.href = urlManager.getDeleteProducerUrl(id);
+        window.location.href = `${appBasePath}/project/${projectId}/delete_producer/${encodeURIComponent(id)}`;
     }
 }
 
@@ -1301,7 +1313,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
     handleKeyTypeChange();
     initializeSidebar();
-    loadChart();
+
+    // Ne charger le graphique que s'il y a potentiellement des données
+    const hasProducers = document.querySelectorAll('[id^="form_producer_"]').length > 0;
+    const hasConsumers = document.querySelectorAll('[id^="form_consumer_"]').length > 0;
+    const hasFiles = document.querySelectorAll('.file-status-has-file').length > 0;
+
+    if (hasProducers && hasConsumers && hasFiles) {
+        loadChart();
+    } else {
+        // Afficher directement le message "Aucune donnée"
+        const chartLoading = document.getElementById('chart-loading');
+        if (chartLoading) {
+            chartLoading.innerHTML = `
+                <div style="text-align: center; color: #64748b;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">📊</div>
+                    <div style="font-size: 16px; margin-bottom: 10px;">Aucune donnée disponible</div>
+                    <div style="font-size: 14px;">Ajoutez des producteurs et consommateurs, puis calculez les clés de répartition</div>
+                </div>
+            `;
+        }
+
+        updateIndicators({
+            auto_consumption_rate: '-',
+            auto_production_rate_global: '-',
+            coverage_rate: '-'
+        });
+    }
+
     applyFileNameTruncation();
 
     // Gestionnaire pour l'ajout de producteur
