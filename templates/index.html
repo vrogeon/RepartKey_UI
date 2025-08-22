@@ -2,28 +2,149 @@
 
 {% block content %}
 
-{% if project %}
-<div style="background: linear-gradient(90deg, #e0f2fe, #dbeafe); padding: 15px 20px; margin: -20px -20px 20px -20px; border-radius: 0 0 15px 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-            <strong style="color: #0369a1; font-size: 16px;">📁 Projet actuel :</strong>
-            <span style="color: #0c4a6e; font-size: 18px; font-weight: 600;">{{ project.name }}</span>
-            {% if project.description %}
-                <span style="color: #64748b; font-size: 14px; margin-left: 10px;">• {{ project.description }}</span>
-            {% endif %}
-        </div>
-        <a href="{{ url_for('projects') }}" style="background: white; color: #0891b2; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 500; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: all 0.3s;">
-            ← Retour aux projets
-        </a>
-    </div>
-</div>
-{% endif %}
-
 <style>
 /* Styles existants restent les mêmes */
 body {
     background: linear-gradient(135deg, #2dd4bf 0%, #0d9488 25%, #0891b2 50%, #0e7490 75%, #164e63 100%) !important;
     background-attachment: fixed !important;
+}
+
+/* Styles pour le bloc d'info projet dans le sidebar */
+.project-info-block {
+    background: linear-gradient(90deg, #e0f2fe, #dbeafe);
+    padding: 12px;
+    margin: -20px -20px 20px -20px;
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 10;
+}
+
+.sidebar-panel:not(.expanded) .project-info-block {
+    padding: 8px;
+    margin: -20px -20px 15px -20px;
+}
+
+.project-info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.project-info-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.project-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.project-details {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+}
+
+.project-details strong {
+    color: #0c4a6e;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.project-details small {
+    color: #64748b;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+}
+
+.btn-back-projects {
+    background: white;
+    color: #0891b2;
+    padding: 6px 12px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.btn-back-projects:hover {
+    background: #f0f9ff;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+
+/* Adaptation pour panneau réduit */
+.sidebar-panel:not(.expanded) .project-info-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.sidebar-panel:not(.expanded) .project-info-title {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.sidebar-panel:not(.expanded) .project-icon {
+    font-size: 24px;
+    margin-bottom: 5px;
+}
+
+.sidebar-panel:not(.expanded) .project-details {
+    display: none;
+}
+
+.sidebar-panel:not(.expanded) .btn-back-projects {
+    padding: 4px 8px;
+    font-size: 10px;
+    text-align: center;
+    width: 100%;
+}
+
+/* Minimum visible même en très petit */
+.sidebar-panel {
+    min-width: 50px;
+}
+
+.sidebar-panel:not(.expanded) .project-info-block {
+    min-height: 80px;
+}
+
+/* Animation pour l'expansion */
+.sidebar-panel.expanded .project-info-block {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 .grouped-block {
@@ -46,6 +167,7 @@ body {
 .block-title {
     color: #007bff;
     margin-bottom: 15px;
+    margin-top: 10px;
     font-weight: bold;
     text-align: center;
     cursor: pointer;
@@ -97,9 +219,10 @@ body {
     background-color: rgba(248, 249, 250, 0.98);
     backdrop-filter: blur(10px);
     box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-    transition: none;
+    transition: width 0.3s ease;
     z-index: 1000;
     overflow-y: auto;
+    overflow-x: hidden;
     border-right: 3px solid #007bff;
     min-width: 50px;
     max-width: 80vw;
@@ -175,13 +298,28 @@ body {
 
 .sidebar-content {
     padding: 20px;
-    margin-top: 20px;
-    opacity: 0;
+    padding-top: 20px;
     transition: opacity 0.3s ease;
+}
+
+.sidebar-panel:not(.expanded) .sidebar-content {
+    opacity: 1; /* Toujours visible pour le bloc projet */
 }
 
 .sidebar-panel.expanded .sidebar-content {
     opacity: 1;
+}
+
+/* Masquer seulement le contenu du tableau quand réduit */
+.sidebar-panel:not(.expanded) .block-content {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+}
+
+.sidebar-panel:not(.expanded) .block-title {
+    opacity: 0.5;
+    font-size: 12px;
 }
 
 .main-content {
@@ -201,6 +339,25 @@ body {
 <!-- Panneau latéral pour le tableau de répartition -->
 <div class="sidebar-panel" id="tableauSidebar">
     <div class="sidebar-content">
+        {% if project %}
+        <div class="project-info-block">
+            <div class="project-info-header">
+                <div class="project-info-title">
+                    <span class="project-icon">📁</span>
+                    <div class="project-details">
+                        <strong>{{ project.name }}</strong>
+                        {% if project.description %}
+                        <small>{{ project.description }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+                <a href="{{ url_for('projects') }}" class="btn-back-projects">
+                    ← Projets
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
         <h3 class="block-title" onclick="toggleBlock(this)">Tableau de répartition</h3>
         <div class="block-content">
             <div style="overflow-x: auto;">
@@ -676,12 +833,24 @@ function initializeSidebar() {
         sidebar.style.width = width + 'px';
         document.documentElement.style.setProperty('--sidebar-width', width + 'px');
 
+        // Afficher/masquer le contenu selon la largeur
         if (width > 200) {
             sidebar.classList.add('expanded');
         } else {
             sidebar.classList.remove('expanded');
         }
 
+        // Ajuster le texte du bouton selon la largeur
+        const backButton = document.querySelector('.btn-back-projects');
+        if (backButton) {
+            if (width > 150) {
+                backButton.innerHTML = '← Projets';
+            } else {
+                backButton.innerHTML = '←';
+            }
+        }
+
+        // Redimensionner le graphique
         setTimeout(() => {
             if (window.Plotly && document.getElementById('chart').hasChildNodes()) {
                 Plotly.Plots.resize('chart');
