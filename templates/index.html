@@ -259,15 +259,6 @@ body {
     animation: fadeIn 0.3s ease;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-
 .grouped-block {
     border: 2px solid #007bff;
     border-radius: 8px;
@@ -312,7 +303,7 @@ body {
 }
 
 .block-content {
-    transition: max-height 0.3s ease, opacity 0.3s ease;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
     overflow: hidden;
 }
 
@@ -424,14 +415,13 @@ body {
 }
 
 .sidebar-panel:not(.expanded) .sidebar-content {
-    opacity: 1; /* Toujours visible pour le bloc projet */
+    opacity: 1;
 }
 
 .sidebar-panel.expanded .sidebar-content {
     opacity: 1;
 }
 
-/* Masquer seulement le contenu du tableau quand réduit */
 .sidebar-panel:not(.expanded) .block-content {
     opacity: 0;
     max-height: 0;
@@ -454,6 +444,33 @@ body {
     flex-direction: column;
     height: calc(100vh - 40px);
     gap: 20px;
+    transition: all 0.3s ease;
+}
+
+.grouped-block:has(#chart-container) {
+    flex: 1;
+    min-height: 300px;
+    overflow: hidden;
+    transition: height 0.3s ease;
+}
+
+#chart-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+#chart {
+    flex: 1;
+    min-height: 0;
+}
+
+@media (max-height: 768px) {
+    .grouped-block:has(#chart-container) {
+        min-height: 250px;
+    }
 }
 </style>
 
@@ -673,24 +690,24 @@ function getAppBasePath() {
 const appBasePath = getAppBasePath();
 const projectBaseUrl = `${appBasePath}/project/${encodeURIComponent(projectId)}`;
 
+// ===== GESTION DU MODE DÉMO =====
+const isDemo = window.location.pathname.includes('/demo');
+const projectIdFromTemplate = projectId;
+const isDemoMode = projectIdFromTemplate === -1 || isDemo;
+
 // Classe pour gérer les URLs de manière sécurisée
 class URLManager {
     constructor(projectId) {
         this.projectId = projectId;
-        this.appBasePath = appBasePath;  // Ajouter cette ligne
-        this.baseUrl = `${this.appBasePath}/project/${encodeURIComponent(projectId)}`;  // Modifier cette ligne
+        this.appBasePath = appBasePath;
+        this.baseUrl = `${this.appBasePath}/project/${encodeURIComponent(projectId)}`;
     }
 
     buildUrl(endpoint) {
-        // Nettoyer l'endpoint
         endpoint = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
-
-        // Ne pas doubler le préfixe project
         if (endpoint.includes('/project/')) {
             return endpoint;
         }
-
-        // Construire l'URL complète
         return this.baseUrl + endpoint;
     }
 
@@ -739,8 +756,345 @@ class URLManager {
     }
 }
 
+// Classe pour le mode démo
+class DemoURLManager {
+    constructor() {
+        this.appBasePath = getAppBasePath();
+        this.baseUrl = `${this.appBasePath}/demo`;
+    }
+
+    buildUrl(endpoint) {
+        endpoint = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
+        return this.baseUrl + endpoint;
+    }
+
+    getAddConsumerUrl() {
+        return this.buildUrl('/add_consumer');
+    }
+
+    getAddProducerUrl() {
+        return this.buildUrl('/add_producer');
+    }
+
+    getComputeUrl() {
+        return this.buildUrl('/compute_repartition_keys');
+    }
+
+    getUpdateConsumerDataUrl() {
+        return this.buildUrl('/update_consumer_data');
+    }
+
+    getUploadConsumerFileUrl() {
+        return this.buildUrl('/upload_consumer_file');
+    }
+
+    getUploadProducerFileUrl() {
+        return this.buildUrl('/upload_producer_file');
+    }
+
+    getDeleteConsumerUrl(id) {
+        return this.buildUrl(`/delete_consumer/${id}`);
+    }
+
+    getDeleteProducerUrl(id) {
+        return this.buildUrl(`/delete_producer/${id}`);
+    }
+
+    getDataUrl() {
+        return this.buildUrl('/data');
+    }
+}
+
 // Instance globale du gestionnaire d'URLs
-const urlManager = new URLManager(projectId);
+const urlManager = isDemoMode ? new DemoURLManager() : new URLManager(projectId);
+
+// ===== GESTION DYNAMIQUE DU TABLEAU SANS RECHARGEMENT =====
+
+// Fonction pour ajouter dynamiquement un producteur au tableau
+function addProducerToTable(producerData) {
+    const table = document.querySelector('#tableauSidebar table tbody');
+    if (!table) return;
+
+    const rows = table.querySelectorAll('tr');
+
+    rows.forEach((row, rowIndex) => {
+        const newCell = document.createElement('td');
+        newCell.style.border = '1px solid #ddd';
+        newCell.style.padding = '8px';
+
+        if (rowIndex === 0) {
+            newCell.style.textAlign = 'center';
+            newCell.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <strong>${producerData.name}</strong>
+                    <div>
+                        <button onclick="editProducer(${producerData.id})" class="btn btn-primary" style="margin-right: 5px; font-size: 12px; padding: 4px 8px;">Editer</button>
+                        <button onclick="deleteProducer(${producerData.id})" class="btn btn-danger" style="font-size: 12px; padding: 4px 8px;">Supprimer</button>
+                    </div>
+                </div>
+                <form method="POST" enctype="multipart/form-data" style="margin-bottom: 10px;" id="form_producer_${producerData.id}">
+                    <input type="hidden" name="prod_name" value="${producerData.name}">
+                    <input type="hidden" name="id" value="${producerData.id}">
+                    <div class="file-upload-container">
+                        <input type="file" name="file" id="file_producer_${producerData.id}" class="custom-file-input" onchange="handleProducerFileSelect(this, ${producerData.id});" accept=".csv">
+                        <label for="file_producer_${producerData.id}" class="custom-file-button">Choisir fichier</label>
+                        <div id="status_producer_${producerData.id}" class="file-status-display file-status-no-file">
+                            Aucun fichier
+                        </div>
+                    </div>
+                </form>
+            `;
+        } else {
+            const consumerId = row.querySelector('[data-consumer-id]')?.getAttribute('data-consumer-id');
+            if (consumerId) {
+                const producerIndex = document.querySelectorAll('#tableauSidebar table tbody tr:first-child td').length - 2;
+                newCell.style.textAlign = 'center';
+                newCell.innerHTML = `
+                    <div style="display: flex; gap: 10px; justify-content: center; align-items: flex-start;">
+                        <div style="flex: 1;">
+                            <strong>Priorité:</strong><br>
+                            <div title="prio" class="text-content priority-field" contenteditable="true"
+                                 style="border: 1px solid #ccc; padding: 5px; background: white; margin-top: 5px;"
+                                 data-consumer-id="${consumerId}"
+                                 data-producer-index="${producerIndex}"
+                                 data-field-type="priority"
+                                 onblur="updateConsumerData(this)">0</div>
+                        </div>
+                        <div style="flex: 1;">
+                            <strong>Ratio:</strong><br>
+                            <div class="text-content ratio-field" contenteditable="true"
+                                 style="border: 1px solid #ccc; padding: 5px; background: white; margin-top: 5px;"
+                                 data-consumer-id="${consumerId}"
+                                 data-producer-index="${producerIndex}"
+                                 data-field-type="ratio"
+                                 onblur="updateConsumerData(this)">100</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        row.appendChild(newCell);
+    });
+
+    handleKeyTypeChange();
+}
+
+// Fonction pour ajouter dynamiquement un consommateur au tableau
+function addConsumerToTable(consumerData) {
+    const table = document.querySelector('#tableauSidebar table tbody');
+    if (!table) return;
+
+    const newRow = document.createElement('tr');
+
+    const firstCell = document.createElement('td');
+    firstCell.style.border = '1px solid #ddd';
+    firstCell.style.padding = '8px';
+    firstCell.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <strong>${consumerData.name}</strong>
+            <div>
+                <button onclick="editConsumer(${consumerData.id})" class="btn btn-primary" style="margin-right: 5px; font-size: 12px; padding: 4px 8px;">Editer</button>
+                <button onclick="deleteConsumer(${consumerData.id})" class="btn btn-danger" style="font-size: 12px; padding: 4px 8px;">Supprimer</button>
+            </div>
+        </div>
+        <form method="POST" enctype="multipart/form-data" style="margin-bottom: 10px;" id="form_consumer_${consumerData.id}">
+            <input type="hidden" name="cons_name" value="${consumerData.name}">
+            <input type="hidden" name="id" value="${consumerData.id}">
+            <div class="file-upload-container">
+                <input type="file" name="file" id="file_consumer_${consumerData.id}" class="custom-file-input" onchange="handleConsumerFileSelect(this, ${consumerData.id});" accept=".csv">
+                <label for="file_consumer_${consumerData.id}" class="custom-file-button">Choisir fichier</label>
+                <div id="status_consumer_${consumerData.id}" class="file-status-display file-status-no-file">
+                    Aucun fichier
+                </div>
+            </div>
+        </form>
+    `;
+    newRow.appendChild(firstCell);
+
+    const producerCount = document.querySelectorAll('#tableauSidebar table tbody tr:first-child td').length - 1;
+    for (let i = 0; i < producerCount; i++) {
+        const cell = document.createElement('td');
+        cell.style.border = '1px solid #ddd';
+        cell.style.padding = '8px';
+        cell.style.textAlign = 'center';
+        cell.innerHTML = `
+            <div style="display: flex; gap: 10px; justify-content: center; align-items: flex-start;">
+                <div style="flex: 1;">
+                    <strong>Priorité:</strong><br>
+                    <div title="prio" class="text-content priority-field" contenteditable="true"
+                         style="border: 1px solid #ccc; padding: 5px; background: white; margin-top: 5px;"
+                         data-consumer-id="${consumerData.id}"
+                         data-producer-index="${i}"
+                         data-field-type="priority"
+                         onblur="updateConsumerData(this)">0</div>
+                </div>
+                <div style="flex: 1;">
+                    <strong>Ratio:</strong><br>
+                    <div class="text-content ratio-field" contenteditable="true"
+                         style="border: 1px solid #ccc; padding: 5px; background: white; margin-top: 5px;"
+                         data-consumer-id="${consumerData.id}"
+                         data-producer-index="${i}"
+                         data-field-type="ratio"
+                         onblur="updateConsumerData(this)">100</div>
+                </div>
+            </div>
+        `;
+        newRow.appendChild(cell);
+    }
+
+    table.appendChild(newRow);
+    handleKeyTypeChange();
+}
+
+// Fonction pour supprimer dynamiquement un producteur
+function removeProducerFromTable(producerId) {
+    const producerCell = document.querySelector(`#form_producer_${producerId}`);
+    if (!producerCell) return;
+
+    const cellIndex = producerCell.closest('td').cellIndex;
+
+    const rows = document.querySelectorAll('#tableauSidebar table tbody tr');
+    rows.forEach(row => {
+        if (row.cells[cellIndex]) {
+            row.deleteCell(cellIndex);
+        }
+    });
+
+    updateProducerIndices();
+}
+
+// Fonction pour supprimer dynamiquement un consommateur
+function removeConsumerFromTable(consumerId) {
+    const consumerForm = document.querySelector(`#form_consumer_${consumerId}`);
+    if (consumerForm) {
+        const row = consumerForm.closest('tr');
+        if (row) {
+            row.remove();
+        }
+    }
+}
+
+// Mettre à jour les indices après suppression
+function updateProducerIndices() {
+    const rows = document.querySelectorAll('#tableauSidebar table tbody tr');
+    rows.forEach((row, rowIndex) => {
+        if (rowIndex > 0) {
+            const cells = row.querySelectorAll('td');
+            cells.forEach((cell, cellIndex) => {
+                if (cellIndex > 0) {
+                    const priorityField = cell.querySelector('.priority-field');
+                    const ratioField = cell.querySelector('.ratio-field');
+                    if (priorityField) {
+                        priorityField.setAttribute('data-producer-index', cellIndex - 1);
+                    }
+                    if (ratioField) {
+                        ratioField.setAttribute('data-producer-index', cellIndex - 1);
+                    }
+                }
+            });
+        }
+    });
+}
+
+// Suppression AJAX
+function deleteConsumerAjax(id) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce consommateur ?')) {
+        fetch(urlManager.getDeleteConsumerUrl(id), {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                removeConsumerFromTable(id);
+                showMessage('Consommateur supprimé avec succès', 'success');
+            } else {
+                showMessage('Erreur: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            showMessage('Erreur lors de la suppression', 'error');
+        });
+    }
+}
+
+function deleteProducerAjax(id) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce producteur ?')) {
+        fetch(urlManager.getDeleteProducerUrl(id), {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                removeProducerFromTable(id);
+                showMessage('Producteur supprimé avec succès', 'success');
+            } else {
+                showMessage('Erreur: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            showMessage('Erreur lors de la suppression', 'error');
+        });
+    }
+}
+
+// ===== GESTION DU REDIMENSIONNEMENT AUTOMATIQUE DU GRAPHIQUE =====
+
+function toggleBlockWithResize(titleElement) {
+    const content = titleElement.nextElementSibling;
+    const isCollapsed = content.classList.contains('collapsed');
+
+    if (isCollapsed) {
+        content.style.maxHeight = content.scrollHeight + 'px';
+        content.classList.remove('collapsed');
+        titleElement.classList.remove('collapsed');
+    } else {
+        content.style.maxHeight = content.scrollHeight + 'px';
+        content.offsetHeight;
+        content.style.maxHeight = '0px';
+        content.classList.add('collapsed');
+        titleElement.classList.add('collapsed');
+    }
+
+    if (titleElement.textContent.includes('Configuration et calcul')) {
+        setTimeout(() => {
+            resizeGraphContainer();
+        }, 350);
+    }
+}
+
+function resizeGraphContainer() {
+    const configBlock = document.querySelector('.grouped-block');
+    const graphBlock = document.querySelector('.grouped-block:has(#chart-container)');
+
+    if (!configBlock || !graphBlock) return;
+
+    const configContent = configBlock.querySelector('.block-content');
+    const isConfigCollapsed = configContent.classList.contains('collapsed');
+
+    const viewportHeight = window.innerHeight;
+    const configBlockHeight = isConfigCollapsed ? 60 : configBlock.offsetHeight;
+    const margin = 40;
+
+    const newGraphHeight = viewportHeight - configBlockHeight - margin - 40;
+
+    graphBlock.style.transition = 'height 0.3s ease';
+    graphBlock.style.height = `${Math.max(300, newGraphHeight)}px`;
+
+    if (window.Plotly && document.getElementById('chart').hasChildNodes()) {
+        setTimeout(() => {
+            Plotly.Plots.resize('chart');
+        }, 50);
+    }
+}
 
 // Fonctions pour la gestion des fichiers
 function truncateFileName(fileName, maxLength = 18) {
@@ -798,17 +1152,9 @@ function editProducer(id) {
     window.location.href = `${appBasePath}/project/${projectId}/update_producer/${encodeURIComponent(id)}`;
 }
 
-function deleteConsumer(id) {
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce consommateur ?')) {
-        window.location.href = `${appBasePath}/project/${projectId}/delete_consumer/${encodeURIComponent(id)}`;
-    }
-}
-
-function deleteProducer(id) {
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce producteur ?')) {
-        window.location.href = `${appBasePath}/project/${projectId}/delete_producer/${encodeURIComponent(id)}`;
-    }
-}
+// Remplacer les fonctions deleteConsumer et deleteProducer
+window.deleteConsumer = deleteConsumerAjax;
+window.deleteProducer = deleteProducerAjax;
 
 // Gestion des fichiers
 function handleProducerFileSelect(input, producerId) {
@@ -849,7 +1195,6 @@ function uploadProducerFile(form) {
     const producerId = form.querySelector('input[name="id"]').value;
     const statusDiv = document.getElementById(`status_producer_${producerId}`);
 
-    // Afficher un indicateur de chargement
     if (statusDiv) {
         statusDiv.innerHTML = '<span style="color: #0891b2;">Envoi...</span>';
     }
@@ -864,7 +1209,6 @@ function uploadProducerFile(form) {
             console.log('Fichier producteur uploadé avec succès');
             showMessage('Fichier producteur uploadé avec succès', 'success');
 
-            // Mettre à jour le statut
             if (statusDiv) {
                 const fileName = data.filename || 'Fichier uploadé';
                 statusDiv.className = 'file-status-display file-status-has-file';
@@ -875,7 +1219,6 @@ function uploadProducerFile(form) {
             console.error('Erreur upload producteur:', data.message);
             showMessage('Erreur: ' + data.message, 'error');
 
-            // Restaurer l'état précédent
             if (statusDiv) {
                 statusDiv.className = 'file-status-display file-status-no-file';
                 statusDiv.textContent = 'Aucun fichier';
@@ -898,7 +1241,6 @@ function uploadConsumerFile(form) {
     const consumerId = form.querySelector('input[name="id"]').value;
     const statusDiv = document.getElementById(`status_consumer_${consumerId}`);
 
-    // Afficher un indicateur de chargement
     if (statusDiv) {
         statusDiv.innerHTML = '<span style="color: #0891b2;">Envoi...</span>';
     }
@@ -913,7 +1255,6 @@ function uploadConsumerFile(form) {
             console.log('Fichier consommateur uploadé avec succès');
             showMessage('Fichier consommateur uploadé avec succès', 'success');
 
-            // Mettre à jour le statut
             if (statusDiv) {
                 const fileName = data.filename || 'Fichier uploadé';
                 statusDiv.className = 'file-status-display file-status-has-file';
@@ -924,7 +1265,6 @@ function uploadConsumerFile(form) {
             console.error('Erreur upload consommateur:', data.message);
             showMessage('Erreur: ' + data.message, 'error');
 
-            // Restaurer l'état précédent
             if (statusDiv) {
                 statusDiv.className = 'file-status-display file-status-no-file';
                 statusDiv.textContent = 'Aucun fichier';
@@ -1020,14 +1360,12 @@ function initializeSidebar() {
         sidebar.style.width = width + 'px';
         document.documentElement.style.setProperty('--sidebar-width', width + 'px');
 
-        // Afficher/masquer le contenu selon la largeur
         if (width > 200) {
             sidebar.classList.add('expanded');
         } else {
             sidebar.classList.remove('expanded');
         }
 
-        // Ajuster le texte du bouton selon la largeur
         const backButton = document.querySelector('.btn-back-projects');
         if (backButton) {
             if (width > 150) {
@@ -1037,7 +1375,6 @@ function initializeSidebar() {
             }
         }
 
-        // Redimensionner le graphique
         setTimeout(() => {
             if (window.Plotly && document.getElementById('chart').hasChildNodes()) {
                 Plotly.Plots.resize('chart');
@@ -1047,22 +1384,7 @@ function initializeSidebar() {
 }
 
 // Toggle des blocs
-function toggleBlock(titleElement) {
-    const content = titleElement.nextElementSibling;
-    const isCollapsed = content.classList.contains('collapsed');
-
-    if (isCollapsed) {
-        content.style.maxHeight = content.scrollHeight + 'px';
-        content.classList.remove('collapsed');
-        titleElement.classList.remove('collapsed');
-    } else {
-        content.style.maxHeight = content.scrollHeight + 'px';
-        content.offsetHeight;
-        content.style.maxHeight = '0px';
-        content.classList.add('collapsed');
-        titleElement.classList.add('collapsed');
-    }
-}
+window.toggleBlock = toggleBlockWithResize;
 
 // Gestion du type de clés
 function handleKeyTypeChange() {
@@ -1097,7 +1419,6 @@ function handleKeyTypeChange() {
 function loadChart() {
     console.log('Chargement du graphique...');
 
-    // Afficher le loader
     const chartContainer = document.getElementById('chart');
     const chartLoading = document.getElementById('chart-loading');
 
@@ -1108,7 +1429,6 @@ function loadChart() {
         chartContainer.style.display = 'none';
     }
 
-    // Mettre les indicateurs en état de chargement
     setIndicatorsLoading(true);
 
     const dataUrl = urlManager.getDataUrl();
@@ -1126,7 +1446,6 @@ function loadChart() {
         .then(fig => {
             console.log('Données reçues:', fig);
 
-            // Masquer le loader
             if (chartLoading) {
                 chartLoading.style.display = 'none';
             }
@@ -1151,7 +1470,6 @@ function loadChart() {
                 };
                 Plotly.newPlot('chart', [], emptyLayout, {responsive: true});
 
-                // Mettre à jour les indicateurs avec des valeurs par défaut
                 updateIndicators({
                     auto_consumption_rate: '-',
                     auto_production_rate_global: '-',
@@ -1180,10 +1498,8 @@ function loadChart() {
                 .then(() => {
                     console.log('Graphique créé avec succès');
 
-                    // Ajouter une animation de fade-in
                     chartContainer.classList.add('data-loaded');
 
-                    // Mettre à jour les indicateurs
                     if (fig.indicators) {
                         updateIndicators(fig.indicators);
                     } else {
@@ -1204,7 +1520,6 @@ function loadChart() {
             console.error('Erreur lors du chargement des données:', error);
             console.error('Détails de l\'erreur:', error.message);
 
-            // Masquer le loader et afficher un message
             if (chartLoading) {
                 chartLoading.innerHTML = `
                     <div style="text-align: center; color: #64748b;">
@@ -1215,14 +1530,12 @@ function loadChart() {
                 `;
             }
 
-            // Mettre les indicateurs à leur état par défaut
             updateIndicators({
                 auto_consumption_rate: '-',
                 auto_production_rate_global: '-',
                 coverage_rate: '-'
             });
 
-            // Ne pas afficher de message d'erreur si c'est juste qu'il n'y a pas encore de données
             if (!error.message.includes('404')) {
                 showMessage('Erreur lors du chargement des données du graphique', 'error');
             }
@@ -1242,7 +1555,6 @@ function updateIndicators(indicators) {
         if (element) {
             const value = elements[id];
 
-            // Animation de transition
             element.style.opacity = '0';
 
             setTimeout(() => {
@@ -1305,16 +1617,139 @@ function showMessage(message, type) {
     }, 3000);
 }
 
+// Fonction pour afficher un graphique de démonstration (mode démo)
+function showDemoChart() {
+    const chartContainer = document.getElementById('chart');
+    const chartLoading = document.getElementById('chart-loading');
+
+    if (chartLoading) {
+        chartLoading.style.display = 'none';
+    }
+    if (chartContainer) {
+        chartContainer.style.display = 'block';
+
+        const dates = [];
+        const values = [];
+        const consumers = ['Bâtiment A', 'Bâtiment B', 'Parking'];
+
+        for (let i = 0; i < 30; i++) {
+            const date = new Date();
+            date.setDate(date.getDate() - 30 + i);
+            dates.push(date.toISOString().split('T')[0]);
+        }
+
+        const traces = consumers.map((consumer, idx) => {
+            const data = dates.map(() => Math.random() * 100 + 50);
+            return {
+                type: 'scatter',
+                mode: 'lines',
+                name: consumer,
+                x: dates,
+                y: data,
+                stackgroup: 'one',
+                fill: idx === 0 ? 'tozeroy' : 'tonexty'
+            };
+        });
+
+        const layout = {
+            title: 'Simulation d\'autoconsommation (Mode Démo)',
+            xaxis: {
+                title: 'Date',
+                type: 'date'
+            },
+            yaxis: {
+                title: 'Autoconsommation (kWh)'
+            },
+            legend: {
+                orientation: 'h',
+                x: 0.5,
+                xanchor: 'center',
+                y: -0.2,
+                yanchor: 'top'
+            },
+            annotations: [{
+                x: 0.5,
+                y: 1.1,
+                xref: 'paper',
+                yref: 'paper',
+                text: 'Données de démonstration - Non réelles',
+                showarrow: false,
+                font: {
+                    size: 10,
+                    color: '#666'
+                },
+                xanchor: 'center'
+            }]
+        };
+
+        const config = {
+            responsive: true,
+            displayModeBar: true,
+            displaylogo: false
+        };
+
+        Plotly.newPlot('chart', traces, layout, config);
+    }
+}
+
 // Initialisation des formulaires
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM chargé, initialisation...');
     console.log('Project ID:', projectId);
-    console.log('Base URL:', projectBaseUrl);
+    console.log('Mode démo:', isDemoMode);
 
     handleKeyTypeChange();
     initializeSidebar();
+    resizeGraphContainer();
 
-    // Ne charger le graphique que s'il y a potentiellement des données
+    // Configuration spéciale pour le mode démo
+    if (isDemoMode) {
+        // Ajouter un bandeau d'information
+        const demoBanner = document.createElement('div');
+        demoBanner.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(90deg, #10b981, #059669);
+            color: white;
+            padding: 10px;
+            text-align: center;
+            z-index: 10000;
+            font-size: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        `;
+        demoBanner.innerHTML = `
+            <strong>🎯 MODE DÉMONSTRATION</strong> -
+            Les données ne seront pas sauvegardées.
+            <a href="${appBasePath}/register" style="color: white; text-decoration: underline; margin-left: 10px;">
+                Créer un compte pour sauvegarder vos projets
+            </a>
+        `;
+        document.body.prepend(demoBanner);
+
+        const mainContent = document.querySelector('.main-content');
+        if (mainContent) {
+            mainContent.style.marginTop = '50px';
+        }
+
+        const projectInfoBlock = document.querySelector('.project-info-block');
+        if (projectInfoBlock) {
+            projectInfoBlock.style.display = 'none';
+        }
+
+        document.querySelectorAll('.custom-file-input').forEach(input => {
+            input.disabled = true;
+            input.title = 'Upload de fichiers désactivé en mode démo';
+        });
+
+        document.querySelectorAll('.custom-file-button').forEach(button => {
+            button.style.opacity = '0.5';
+            button.style.cursor = 'not-allowed';
+            button.title = 'Upload de fichiers désactivé en mode démo';
+        });
+    }
+
     const hasProducers = document.querySelectorAll('[id^="form_producer_"]').length > 0;
     const hasConsumers = document.querySelectorAll('[id^="form_consumer_"]').length > 0;
     const hasFiles = document.querySelectorAll('.file-status-has-file').length > 0;
@@ -1322,7 +1757,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (hasProducers && hasConsumers && hasFiles) {
         loadChart();
     } else {
-        // Afficher directement le message "Aucune donnée"
         const chartLoading = document.getElementById('chart-loading');
         if (chartLoading) {
             chartLoading.innerHTML = `
@@ -1348,6 +1782,7 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
 
         const formData = new FormData(this);
+        const prodName = formData.get('prod_name');
 
         fetch(urlManager.getAddProducerUrl(), {
             method: 'POST',
@@ -1356,8 +1791,13 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                addProducerToTable({
+                    id: data.producer_id,
+                    name: prodName
+                });
+
+                this.reset();
                 showMessage('Producteur ajouté avec succès', 'success');
-                window.location.reload();
             } else {
                 showMessage('Erreur: ' + data.message, 'error');
             }
@@ -1373,6 +1813,7 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
 
         const formData = new FormData(this);
+        const consName = formData.get('cons_name');
 
         fetch(urlManager.getAddConsumerUrl(), {
             method: 'POST',
@@ -1381,8 +1822,13 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                addConsumerToTable({
+                    id: data.consumer_id,
+                    name: consName
+                });
+
+                this.reset();
                 showMessage('Consommateur ajouté avec succès', 'success');
-                window.location.reload();
             } else {
                 showMessage('Erreur: ' + data.message, 'error');
             }
@@ -1396,6 +1842,29 @@ document.addEventListener('DOMContentLoaded', function() {
     // Gestionnaire pour le calcul des clés
     document.getElementById('computeForm').addEventListener('submit', function(e) {
         e.preventDefault();
+
+        if (isDemoMode) {
+            const submitButton = this.querySelector('button[type="submit"]');
+            const originalText = submitButton.textContent;
+            submitButton.disabled = true;
+            submitButton.textContent = 'Calcul en cours...';
+
+            setTimeout(() => {
+                updateIndicators({
+                    auto_consumption_rate: Math.floor(Math.random() * 30) + 60,
+                    auto_production_rate_global: Math.floor(Math.random() * 20) + 40,
+                    coverage_rate: Math.floor(Math.random() * 25) + 50
+                });
+
+                showDemoChart();
+
+                submitButton.disabled = false;
+                submitButton.textContent = originalText;
+
+                showMessage('Calcul terminé (mode démo - données simulées)', 'success');
+            }, 1500);
+            return;
+        }
 
         const submitButton = this.querySelector('button[type="submit"]');
         const originalText = submitButton.textContent;
@@ -1436,12 +1905,16 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Gestion du redimensionnement de la fenêtre
+let resizeTimeout;
 window.addEventListener('resize', function() {
-    if (window.Plotly && document.getElementById('chart').hasChildNodes()) {
-        setTimeout(() => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        resizeGraphContainer();
+
+        if (window.Plotly && document.getElementById('chart').hasChildNodes()) {
             Plotly.Plots.resize('chart');
-        }, 100);
-    }
+        }
+    }, 250);
 });
 </script>
 
