@@ -146,19 +146,39 @@ body {
     z-index: 10;
 }
 
-.sidebar-panel:not(.expanded) .project-info-block {
+/* Bloc d'info demo */
+.demo-info-block {
+    background: linear-gradient(90deg, #dcfce7, #bbf7d0);
+    padding: 12px;
+    margin: -20px -20px 20px -20px;
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 10;
+    border: 2px solid #10b981;
+}
+
+.sidebar-panel:not(.expanded) .project-info-block,
+.sidebar-panel:not(.expanded) .demo-info-block {
     padding: 8px;
     margin: -20px -20px 15px -20px;
 }
 
-.project-info-header {
+.project-info-header,
+.demo-info-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 10px;
 }
 
-.project-info-title {
+.project-info-title,
+.demo-info-title {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -166,19 +186,22 @@ body {
     min-width: 0;
 }
 
-.project-icon {
+.project-icon,
+.demo-icon {
     font-size: 20px;
     flex-shrink: 0;
 }
 
-.project-details {
+.project-details,
+.demo-details {
     display: flex;
     flex-direction: column;
     min-width: 0;
     flex: 1;
 }
 
-.project-details strong {
+.project-details strong,
+.demo-details strong {
     color: #0c4a6e;
     font-size: 14px;
     font-weight: 600;
@@ -187,7 +210,12 @@ body {
     text-overflow: ellipsis;
 }
 
-.project-details small {
+.demo-details strong {
+    color: #166534;
+}
+
+.project-details small,
+.demo-details small {
     color: #64748b;
     font-size: 11px;
     white-space: nowrap;
@@ -210,35 +238,60 @@ body {
     flex-shrink: 0;
 }
 
+.btn-back-login {
+    background: white;
+    color: #10b981;
+    padding: 6px 12px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
 .btn-back-projects:hover {
     background: #f0f9ff;
     transform: translateY(-1px);
     box-shadow: 0 3px 6px rgba(0,0,0,0.15);
 }
 
+.btn-back-login:hover {
+    background: #f0fdf4;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+
 /* Adaptation pour panneau réduit */
-.sidebar-panel:not(.expanded) .project-info-header {
+.sidebar-panel:not(.expanded) .project-info-header,
+.sidebar-panel:not(.expanded) .demo-info-header {
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
 }
 
-.sidebar-panel:not(.expanded) .project-info-title {
+.sidebar-panel:not(.expanded) .project-info-title,
+.sidebar-panel:not(.expanded) .demo-info-title {
     flex-direction: column;
     align-items: center;
     text-align: center;
 }
 
-.sidebar-panel:not(.expanded) .project-icon {
+.sidebar-panel:not(.expanded) .project-icon,
+.sidebar-panel:not(.expanded) .demo-icon {
     font-size: 24px;
     margin-bottom: 5px;
 }
 
-.sidebar-panel:not(.expanded) .project-details {
+.sidebar-panel:not(.expanded) .project-details,
+.sidebar-panel:not(.expanded) .demo-details {
     display: none;
 }
 
-.sidebar-panel:not(.expanded) .btn-back-projects {
+.sidebar-panel:not(.expanded) .btn-back-projects,
+.sidebar-panel:not(.expanded) .btn-back-login {
     padding: 4px 8px;
     font-size: 10px;
     text-align: center;
@@ -250,12 +303,14 @@ body {
     min-width: 50px;
 }
 
-.sidebar-panel:not(.expanded) .project-info-block {
+.sidebar-panel:not(.expanded) .project-info-block,
+.sidebar-panel:not(.expanded) .demo-info-block {
     min-height: 80px;
 }
 
 /* Animation pour l'expansion */
-.sidebar-panel.expanded .project-info-block {
+.sidebar-panel.expanded .project-info-block,
+.sidebar-panel.expanded .demo-info-block {
     animation: fadeIn 0.3s ease;
 }
 
@@ -472,14 +527,6 @@ body {
         min-height: 250px;
     }
 }
-    /* Ajustements pour le mode démo */
-#demo-banner {
-    transition: all 0.3s ease;
-}
-
-.main-content.demo-mode {
-    padding-top: 10px; /* Pas besoin de marge supplémentaire */
-}
 
 /* Animation pour les notifications */
 @keyframes slideIn {
@@ -510,22 +557,41 @@ body {
 <div class="sidebar-panel" id="tableauSidebar">
     <div class="sidebar-content">
         {% if project %}
-        <div class="project-info-block">
-            <div class="project-info-header">
-                <div class="project-info-title">
-                    <span class="project-icon">📁</span>
-                    <div class="project-details">
-                        <strong>{{ project.name }}</strong>
-                        {% if project.description %}
-                        <small>{{ project.description }}</small>
-                        {% endif %}
+            {% if project.id == -1 %}
+            <!-- Mode démo -->
+            <div class="demo-info-block">
+                <div class="demo-info-header">
+                    <div class="demo-info-title">
+                        <span class="demo-icon">🎯</span>
+                        <div class="demo-details">
+                            <strong>MODE DÉMONSTRATION</strong>
+                            <small>Les données seront supprimées</small>
+                        </div>
                     </div>
+                    <a href="{{ url_for('login') }}" class="btn-back-login">
+                        ← Connexion
+                    </a>
                 </div>
-                <a href="{{ url_for('projects') }}" class="btn-back-projects">
-                    ← Projets
-                </a>
             </div>
-        </div>
+            {% else %}
+            <!-- Mode projet normal -->
+            <div class="project-info-block">
+                <div class="project-info-header">
+                    <div class="project-info-title">
+                        <span class="project-icon">📁</span>
+                        <div class="project-details">
+                            <strong>{{ project.name }}</strong>
+                            {% if project.description %}
+                            <small>{{ project.description }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <a href="{{ url_for('projects') }}" class="btn-back-projects">
+                        ← Projets
+                    </a>
+                </div>
+            </div>
+            {% endif %}
         {% endif %}
 
         <h3 class="block-title" onclick="toggleBlock(this)">Tableau de répartition</h3>
@@ -840,6 +906,7 @@ class DemoURLManager {
         return this.buildUrl('/cleanup');
     }
 }
+
 // Configuration du mode démo au chargement
 if (isDemoMode) {
     // Nettoyer la session à la fermeture de la page
@@ -853,264 +920,13 @@ if (isDemoMode) {
             fetch(urlManager.getCleanupUrl(), {
                 method: 'POST',
                 keepalive: true
-            });
+            }).catch(() => {}); // Ignorer les erreurs de nettoyage
         }
     });
 
     document.addEventListener('DOMContentLoaded', function() {
-        // Créer le bandeau en haut à droite (au lieu d'en haut)
-        const demoBanner = document.createElement('div');
-        demoBanner.id = 'demo-banner';
-        demoBanner.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 10px;
-            z-index: 10000;
-            font-size: 13px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            max-width: 320px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            animation: slideIn 0.5s ease;
-        `;
-
-        demoBanner.innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-                <strong style="font-size: 14px;">🎯 MODE DÉMONSTRATION</strong>
-                <button onclick="closeDemoBanner()" style="
-                    background: transparent;
-                    border: none;
-                    color: white;
-                    font-size: 18px;
-                    cursor: pointer;
-                    padding: 0;
-                    margin-left: 10px;
-                ">×</button>
-            </div>
-            <div style="font-size: 11px; opacity: 0.95;">
-                Les données seront supprimées à la fermeture.
-            </div>
-            <a href="${appBasePath}/register" style="
-                color: white;
-                background: rgba(255,255,255,0.2);
-                padding: 6px 12px;
-                border-radius: 6px;
-                text-decoration: none;
-                font-size: 11px;
-                text-align: center;
-                margin-top: 4px;
-                transition: all 0.3s;
-            " onmouseover="this.style.background='rgba(255,255,255,0.3)'"
-               onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-                Créer un compte pour sauvegarder →
-            </a>
-        `;
-
-        document.body.appendChild(demoBanner);
-
-        // Animation CSS pour le slide-in
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes slideIn {
-                from {
-                    transform: translateX(100%);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-            }
-
-            @keyframes slideOut {
-                from {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-                to {
-                    transform: translateX(100%);
-                    opacity: 0;
-                }
-            }
-        `;
-        document.head.appendChild(style);
-
-        // Ajuster la hauteur du graphique pour éviter le débordement
-        const adjustGraphHeight = () => {
-            const graphBlock = document.querySelector('.grouped-block:has(#chart-container)');
-            if (graphBlock) {
-                const viewportHeight = window.innerHeight;
-                const bannerHeight = 80; // Hauteur approximative du bandeau
-                const configBlock = document.querySelector('.grouped-block:first-child');
-                const configHeight = configBlock ? configBlock.offsetHeight : 200;
-                const margin = 60;
-
-                const maxHeight = viewportHeight - configHeight - margin - (isDemoMode ? 30 : 0);
-                graphBlock.style.maxHeight = `${Math.max(300, maxHeight)}px`;
-                graphBlock.style.overflow = 'hidden';
-            }
-        };
-
-        // Appliquer l'ajustement initial et sur resize
-        setTimeout(adjustGraphHeight, 100);
-        window.addEventListener('resize', adjustGraphHeight);
-
-        // Masquer le bloc projet info en mode démo
-        const projectInfoBlock = document.querySelector('.project-info-block');
-        if (projectInfoBlock) {
-            projectInfoBlock.style.display = 'none';
-        }
-
-        // Activer l'upload de fichiers en mode démo
-        document.querySelectorAll('.custom-file-input').forEach(input => {
-            input.disabled = false;
-            input.title = 'Sélectionner un fichier CSV';
-        });
-
-        document.querySelectorAll('.custom-file-button').forEach(button => {
-            button.style.opacity = '1';
-            button.style.cursor = 'pointer';
-            button.title = 'Sélectionner un fichier CSV';
-        });
+        console.log('Mode démo activé');
     });
-}
-
-// Fonction pour fermer le bandeau démo
-function closeDemoBanner() {
-    const banner = document.getElementById('demo-banner');
-    if (banner) {
-        banner.style.animation = 'slideOut 0.5s ease';
-        setTimeout(() => {
-            banner.remove();
-        }, 500);
-    }
-}
-
-// Modifier le gestionnaire de calcul pour le mode démo
-if (isDemoMode) {
-    document.addEventListener('DOMContentLoaded', function() {
-        const computeForm = document.getElementById('computeForm');
-        if (computeForm) {
-            // Remplacer le gestionnaire existant
-            const newComputeForm = computeForm.cloneNode(true);
-            computeForm.parentNode.replaceChild(newComputeForm, computeForm);
-
-            newComputeForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-
-                const submitButton = this.querySelector('button[type="submit"]');
-                const originalText = submitButton.textContent;
-                submitButton.disabled = true;
-                submitButton.textContent = 'Calcul en cours...';
-
-                const formData = new FormData(this);
-
-                fetch(urlManager.getComputeUrl(), {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showMessage('Calcul terminé (mode démo)', 'success');
-
-                        if (data.indicators) {
-                            updateIndicators(data.indicators);
-                        }
-
-                        // Charger le graphique réel
-                        loadChart();
-                    } else {
-                        showMessage('Erreur: ' + data.message, 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Erreur:', error);
-                    showMessage('Erreur lors du calcul', 'error');
-                })
-                .finally(() => {
-                    submitButton.disabled = false;
-                    submitButton.textContent = originalText;
-                });
-            });
-        }
-    });
-}
-
-// Fonction mise à jour pour le redimensionnement du graphique
-function resizeGraphContainer() {
-    const configBlock = document.querySelector('.grouped-block:first-child');
-    const graphBlock = document.querySelector('.grouped-block:has(#chart-container)');
-
-    if (!configBlock || !graphBlock) return;
-
-    const configContent = configBlock.querySelector('.block-content');
-    const isConfigCollapsed = configContent.classList.contains('collapsed');
-
-    const viewportHeight = window.innerHeight;
-    const configBlockHeight = isConfigCollapsed ? 60 : configBlock.offsetHeight;
-    const margin = 40;
-
-    // Ajuster la hauteur en tenant compte du mode démo
-    const demoOffset = isDemoMode ? 30 : 0;
-    const newGraphHeight = viewportHeight - configBlockHeight - margin - 40 - demoOffset;
-
-    graphBlock.style.transition = 'height 0.3s ease';
-    graphBlock.style.height = `${Math.max(300, newGraphHeight)}px`;
-    graphBlock.style.maxHeight = `${Math.max(300, newGraphHeight)}px`;
-    graphBlock.style.overflow = 'hidden';
-
-    if (window.Plotly && document.getElementById('chart').hasChildNodes()) {
-        setTimeout(() => {
-            Plotly.Plots.resize('chart');
-        }, 50);
-    }
-}
-
-// Message amélioré pour le mode démo
-function showMessage(message, type) {
-    const notification = document.createElement('div');
-
-    // Ajuster la position si le bandeau démo est présent
-    const demoBanner = document.getElementById('demo-banner');
-    const topPosition = demoBanner ? '100px' : '20px';
-
-    notification.style.cssText = `
-        position: fixed;
-        top: ${topPosition};
-        right: 20px;
-        padding: 12px 20px;
-        border-radius: 8px;
-        color: white;
-        z-index: 10001;
-        font-size: 13px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        animation: slideIn 0.3s ease;
-        max-width: 300px;
-    `;
-
-    if (type === 'success') {
-        notification.style.backgroundColor = '#28a745';
-    } else {
-        notification.style.backgroundColor = '#dc3545';
-    }
-
-    notification.textContent = message;
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 300);
-    }, 3000);
 }
 
 // Instance globale du gestionnaire d'URLs
@@ -1453,10 +1269,18 @@ function applyFileNameTruncation() {
 
 // Fonctions d'édition et suppression
 function editConsumer(id) {
+    if (isDemoMode) {
+        showMessage('Édition non disponible en mode démo', 'error');
+        return;
+    }
     window.location.href = `${appBasePath}/project/${projectId}/update_consumer/${encodeURIComponent(id)}`;
 }
 
 function editProducer(id) {
+    if (isDemoMode) {
+        showMessage('Édition non disponible en mode démo', 'error');
+        return;
+    }
     window.location.href = `${appBasePath}/project/${projectId}/update_producer/${encodeURIComponent(id)}`;
 }
 
@@ -1592,6 +1416,11 @@ function uploadConsumerFile(form) {
 
 // Mise à jour des données consommateur
 function updateConsumerData(element) {
+    if (isDemoMode) {
+        showMessage('Modification non disponible en mode démo', 'error');
+        return;
+    }
+
     const consumerId = element.getAttribute('data-consumer-id');
     const producerIndex = element.getAttribute('data-producer-index');
     const fieldType = element.getAttribute('data-field-type');
@@ -1675,11 +1504,21 @@ function initializeSidebar() {
         }
 
         const backButton = document.querySelector('.btn-back-projects');
+        const backLoginButton = document.querySelector('.btn-back-login');
+
         if (backButton) {
             if (width > 150) {
                 backButton.innerHTML = '← Projets';
             } else {
                 backButton.innerHTML = '←';
+            }
+        }
+
+        if (backLoginButton) {
+            if (width > 150) {
+                backLoginButton.innerHTML = '← Connexion';
+            } else {
+                backLoginButton.innerHTML = '←';
             }
         }
 
@@ -2010,30 +1849,6 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeSidebar();
     resizeGraphContainer();
 
-    // Configuration spéciale pour le mode démo
-    if (isDemoMode) {
-        const mainContent = document.querySelector('.main-content');
-        if (mainContent) {
-            mainContent.style.marginTop = '50px';
-        }
-
-        const projectInfoBlock = document.querySelector('.project-info-block');
-        if (projectInfoBlock) {
-            projectInfoBlock.style.display = 'none';
-        }
-
-        document.querySelectorAll('.custom-file-input').forEach(input => {
-            input.disabled = true;
-            input.title = 'Upload de fichiers désactivé en mode démo';
-        });
-
-        document.querySelectorAll('.custom-file-button').forEach(button => {
-            button.style.opacity = '0.5';
-            button.style.cursor = 'not-allowed';
-            button.title = 'Upload de fichiers désactivé en mode démo';
-        });
-    }
-
     const hasProducers = document.querySelectorAll('[id^="form_producer_"]').length > 0;
     const hasConsumers = document.querySelectorAll('[id^="form_consumer_"]').length > 0;
     const hasFiles = document.querySelectorAll('.file-status-has-file').length > 0;
@@ -2127,29 +1942,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('computeForm').addEventListener('submit', function(e) {
         e.preventDefault();
 
-        if (isDemoMode) {
-            const submitButton = this.querySelector('button[type="submit"]');
-            const originalText = submitButton.textContent;
-            submitButton.disabled = true;
-            submitButton.textContent = 'Calcul en cours...';
-
-            setTimeout(() => {
-                updateIndicators({
-                    auto_consumption_rate: Math.floor(Math.random() * 30) + 60,
-                    auto_production_rate_global: Math.floor(Math.random() * 20) + 40,
-                    coverage_rate: Math.floor(Math.random() * 25) + 50
-                });
-
-                showDemoChart();
-
-                submitButton.disabled = false;
-                submitButton.textContent = originalText;
-
-                showMessage('Calcul terminé (mode démo - données simulées)', 'success');
-            }, 1500);
-            return;
-        }
-
         const submitButton = this.querySelector('button[type="submit"]');
         const originalText = submitButton.textContent;
         submitButton.disabled = true;
@@ -2165,7 +1957,13 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.success) {
                 console.log('Calcul des clés de répartition terminé');
-                showMessage('Calcul des clés de répartition terminé avec succès', 'success');
+
+                let successMessage = 'Calcul des clés de répartition terminé avec succès';
+                if (isDemoMode) {
+                    successMessage += ' (mode démo)';
+                }
+
+                showMessage(successMessage, 'success');
 
                 if (data.indicators) {
                     updateIndicators(data.indicators);

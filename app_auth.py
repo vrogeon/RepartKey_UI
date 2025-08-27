@@ -116,9 +116,40 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 
-# Créer les tables de la base de données
+# Créer les tables de la base de données avec migration
 with app.app_context():
+    # Créer toutes les tables
     db.create_all()
+
+    # Migration pour ajouter les nouveaux champs aux consommateurs existants
+    try:
+        # Vérifier si les colonnes existent déjà
+        inspector = db.inspect(db.engine)
+        consumer_columns = [col['name'] for col in inspector.get_columns('consumer_blocks')]
+
+        # Ajouter les colonnes manquantes
+        if 'prm' not in consumer_columns:
+            db.engine.execute('ALTER TABLE consumer_blocks ADD COLUMN prm VARCHAR(50)')
+            print("Colonne 'prm' ajoutée à consumer_blocks")
+
+        if 'tarif_type' not in consumer_columns:
+            db.engine.execute('ALTER TABLE consumer_blocks ADD COLUMN tarif_type VARCHAR(10) DEFAULT "normal"')
+            print("Colonne 'tarif_type' ajoutée à consumer_blocks")
+
+        if 'tarif_normal' not in consumer_columns:
+            db.engine.execute('ALTER TABLE consumer_blocks ADD COLUMN tarif_normal FLOAT DEFAULT 0.0')
+            print("Colonne 'tarif_normal' ajoutée à consumer_blocks")
+
+        if 'tarif_hc' not in consumer_columns:
+            db.engine.execute('ALTER TABLE consumer_blocks ADD COLUMN tarif_hc FLOAT DEFAULT 0.0')
+            print("Colonne 'tarif_hc' ajoutée à consumer_blocks")
+
+        if 'tarif_hp' not in consumer_columns:
+            db.engine.execute('ALTER TABLE consumer_blocks ADD COLUMN tarif_hp FLOAT DEFAULT 0.0')
+            print("Colonne 'tarif_hp' ajoutée à consumer_blocks")
+
+    except Exception as e:
+        print(f"Migration des colonnes: {e}")
 
 
 # Routes d'authentification
@@ -251,6 +282,7 @@ def demo_mode():
 
     response.set_cookie('demo_session_id', demo_session_id, max_age=3600)  # Expire après 1 heure
     return response
+
 
 @app.route('/demo/cleanup', methods=['POST'])
 def demo_cleanup():
@@ -411,17 +443,18 @@ def demo_upload_producer_file():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
 
+
 @app.route('/demo/delete_consumer/<int:consumer_id>', methods=['DELETE'])
 def demo_delete_consumer(consumer_id):
     """Supprimer un consommateur en mode démo"""
-    if 'demo_project' not in session:
+    demo_session_id = request.cookies.get('demo_session_id')
+    if not demo_session_id or demo_session_id not in DEMO_SESSIONS:
         return jsonify({'success': False, 'message': 'Session démo expirée'})
 
-    session['demo_project']['consumer_blocks'] = [
-        c for c in session['demo_project'].get('consumer_blocks', [])
+    DEMO_SESSIONS[demo_session_id]['consumer_blocks'] = [
+        c for c in DEMO_SESSIONS[demo_session_id].get('consumer_blocks', [])
         if c['id'] != consumer_id
     ]
-    session.modified = True
 
     return jsonify({'success': True, 'message': 'Consommateur supprimé (mode démo)'})
 
@@ -429,14 +462,37 @@ def demo_delete_consumer(consumer_id):
 @app.route('/demo/delete_producer/<int:producer_id>', methods=['DELETE'])
 def demo_delete_producer(producer_id):
     """Supprimer un producteur en mode démo"""
-    if 'demo_project' not in session:
+    demo_session_id = request.cookies.get('demo_session_id')
+    if not demo_session_id or demo_session_id not in DEMO_SESSIONS:
         return jsonify({'success': False, 'message': 'Session démo expirée'})
 
-    session['demo_project']['producer_blocks'] = [
-        p for p in session['demo_project'].get('producer_blocks', [])
+    # Trouver l'index du producteur à supprimer
+    producer_index = -1
+    for i, p in enumerate(DEMO_SESSIONS[demo_session_id].get('producer_blocks', [])):
+        if p['id'] == producer_id:
+            producer_index = i
+            break
+
+    # Supprimer le producteur
+    DEMO_SESSIONS[demo_session_id]['producer_blocks'] = [
+        p for p in DEMO_SESSIONS[demo_session_id].get('producer_blocks', [])
         if p['id'] != producer_id
     ]
-    session.modified = True
+
+    # Mettre à jour tous les consommateurs
+    if producer_index >= 0:
+        for consumer_data in DEMO_SESSIONS[demo_session_id]['consumer_blocks']:
+            if producer_index < len(consumer_data['priority_list']):
+                consumer_data['priority_list'].pop(producer_index)
+            if producer_index < len(consumer_data['ratio_list']):
+                consumer_data['ratio_list'].pop(producer_index)
+
+            if consumer_data['consumer_object']:
+                consumer = consumer_data['consumer_object']
+                if producer_index < len(consumer.priority_list):
+                    consumer.priority_list.pop(producer_index)
+                if producer_index < len(consumer.ratio_list):
+                    consumer.ratio_list.pop(producer_index)
 
     return jsonify({'success': True, 'message': 'Producteur supprimé (mode démo)'})
 
@@ -490,6 +546,7 @@ def demo_compute_repartition_keys():
 
         # Stocker les résultats dans la session
         demo_data['stat_file_list'] = stat_file_list
+        demo_data['stat_file_generated'] = True
         demo_data['auto_consumption_rate'] = rep.get_auto_consumption_rate(0)
         demo_data['auto_production_rate_global'] = rep.get_global_auto_production_rate(cons_list)
         demo_data['coverage_rate'] = rep.get_coverage_rate(0, cons_list)
@@ -522,7 +579,7 @@ def demo_chart_data():
     res = "jour"
 
     try:
-        if 'stat_file_list' in demo_data and demo_data['stat_file_list']:
+        if demo_data.get('stat_file_generated') and 'stat_file_list' in demo_data and demo_data['stat_file_list']:
             stat_file = demo_data['stat_file_list'][0]
 
             if os.path.exists(stat_file):
@@ -546,7 +603,14 @@ def demo_chart_data():
                     'layout': {
                         'title': 'Autoconsommation (Mode Démo)',
                         'xaxis': {'title': 'Date'},
-                        'yaxis': {'title': 'Autoconsommation (kWh)'}
+                        'yaxis': {'title': 'Autoconsommation (kWh)'},
+                        'legend': {
+                            'orientation': 'h',
+                            'x': 0.5,
+                            'xanchor': 'center',
+                            'y': -0.2,
+                            'yanchor': 'top'
+                        }
                     },
                     'indicators': {
                         'auto_consumption_rate': round(demo_data.get('auto_consumption_rate', 0), 2),
@@ -558,9 +622,17 @@ def demo_chart_data():
         return jsonify({
             'data': [],
             'layout': {
-                'title': 'Aucune donnée - Uploadez les fichiers et calculez',
+                'title': 'Aucune donnée disponible - Veuillez calculer les clés de répartition',
                 'xaxis': {'title': 'Date'},
-                'yaxis': {'title': 'Autoconsommation (kWh)'}
+                'yaxis': {'title': 'Autoconsommation (kWh)'},
+                'annotations': [{
+                    'x': 0.5, 'y': 0.5,
+                    'xref': 'paper', 'yref': 'paper',
+                    'text': 'Veuillez calculer les clés de répartition',
+                    'showarrow': False,
+                    'font': {'size': 16, 'color': '#666'},
+                    'xanchor': 'center', 'yanchor': 'middle'
+                }]
             },
             'indicators': {
                 'auto_consumption_rate': 0,
@@ -571,6 +643,8 @@ def demo_chart_data():
 
     except Exception as e:
         print(f"Erreur graphique démo: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
@@ -590,6 +664,7 @@ def cleanup_old_demo_sessions():
 
     for session_id in sessions_to_remove:
         cleanup_demo_session(session_id)
+
 
 # Route des projets
 @app.route('/projects')
@@ -1080,7 +1155,15 @@ def chart_data(project_id):
             'layout': {
                 'title': 'Aucune donnée disponible - Veuillez calculer les clés de répartition',
                 'xaxis': {'title': 'Date'},
-                'yaxis': {'title': 'Autoconsommation (kWh)'}
+                'yaxis': {'title': 'Autoconsommation (kWh)'},
+                'annotations': [{
+                    'x': 0.5, 'y': 0.5,
+                    'xref': 'paper', 'yref': 'paper',
+                    'text': 'Veuillez calculer les clés de répartition',
+                    'showarrow': False,
+                    'font': {'size': 16, 'color': '#666'},
+                    'xanchor': 'center', 'yanchor': 'middle'
+                }]
             },
             'indicators': {
                 'auto_consumption_rate': 0,
@@ -1097,7 +1180,15 @@ def chart_data(project_id):
             'layout': {
                 'title': 'Erreur lors de la génération du graphique',
                 'xaxis': {'title': 'Date'},
-                'yaxis': {'title': 'Autoconsommation (kWh)'}
+                'yaxis': {'title': 'Autoconsommation (kWh)'},
+                'annotations': [{
+                    'x': 0.5, 'y': 0.5,
+                    'xref': 'paper', 'yref': 'paper',
+                    'text': f'Erreur: {str(e)}',
+                    'showarrow': False,
+                    'font': {'size': 14, 'color': '#d32f2f'},
+                    'xanchor': 'center', 'yanchor': 'middle'
+                }]
             },
             'indicators': {
                 'auto_consumption_rate': 0,
@@ -1281,7 +1372,26 @@ def update_consumer(project_id, consumer_id):
         return redirect(url_for('project_dashboard', project_id=project_id))
 
     if request.method == 'POST':
+        # Récupérer les données du formulaire
         consumer_block.cons_name = request.form['cons_name']
+        consumer_block.prm = request.form.get('prm', '').strip() or None
+        consumer_block.tarif_type = request.form.get('tarif_type', 'normal')
+
+        # Traitement des tarifs
+        try:
+            consumer_block.tarif_normal = float(request.form.get('tarif_normal', 0)) or 0.0
+
+            if consumer_block.tarif_type == 'hp_hc':
+                consumer_block.tarif_hc = float(request.form.get('tarif_hc', 0)) or 0.0
+                consumer_block.tarif_hp = float(request.form.get('tarif_hp', 0)) or 0.0
+            else:
+                # Réinitialiser les tarifs HP/HC si mode normal
+                consumer_block.tarif_hc = 0.0
+                consumer_block.tarif_hp = 0.0
+
+        except (ValueError, TypeError):
+            flash('Erreur dans les valeurs de tarifs', 'error')
+            return render_template('update_consumer.html', consumer_block=consumer_block, project_id=project_id)
 
         try:
             db.session.commit()

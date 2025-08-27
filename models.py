@@ -9,31 +9,32 @@ import pickle
 
 db = SQLAlchemy()
 
+
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
     date_created = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     # Relations
     projects = db.relationship('Project', backref='owner', lazy='dynamic', cascade='all, delete-orphan')
-    
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
-    
+
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
-    
+
     def __repr__(self):
         return f'<User {self.username}>'
 
 
 class Project(db.Model):
     __tablename__ = 'projects'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=True)
@@ -41,19 +42,19 @@ class Project(db.Model):
     date_created = db.Column(db.DateTime, default=datetime.utcnow)
     last_modified = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
-    
+
     # Relations
     text_blocks = db.relationship('TextBlock', backref='project', lazy='dynamic', cascade='all, delete-orphan')
     consumer_blocks = db.relationship('ConsumerBlock', backref='project', lazy='dynamic', cascade='all, delete-orphan')
     producer_blocks = db.relationship('ProducerBlock', backref='project', lazy='dynamic', cascade='all, delete-orphan')
-    
+
     def __repr__(self):
         return f'<Project {self.name}>'
 
 
 class TextBlock(db.Model):
     __tablename__ = 'text_blocks'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     content = db.Column(db.Text, nullable=False)
@@ -66,14 +67,22 @@ class TextBlock(db.Model):
 
 class ConsumerBlock(db.Model):
     __tablename__ = 'consumer_blocks'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     cons_name = db.Column(db.String(100), nullable=False)
+    prm = db.Column(db.String(50), nullable=True)  # Nouveau champ PRM
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
     date_created = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
+    # Nouveaux champs pour les tarifs
+    tarif_type = db.Column(db.String(10), default='normal')  # 'normal' ou 'hp_hc'
+    tarif_normal = db.Column(db.Float, default=0.0)
+    tarif_hc = db.Column(db.Float, default=0.0)  # Tarif heure creuse
+    tarif_hp = db.Column(db.Float, default=0.0)  # Tarif heure pleine
+
     # Relation avec ConsumerObject
-    consumer_object = db.relationship('ConsumerObject', backref='consumer_block', uselist=False, cascade='all, delete-orphan')
+    consumer_object = db.relationship('ConsumerObject', backref='consumer_block', uselist=False,
+                                      cascade='all, delete-orphan')
 
     def get_consumer_object(self):
         """Retourne l'objet Consumer associé"""
@@ -103,7 +112,7 @@ class ConsumerBlock(db.Model):
                 while len(consumer.priority_list) <= producer_index:
                     consumer.priority_list.append(0)
                 consumer.priority_list[producer_index] = int(value)
-                
+
                 self.consumer_object.set_consumer_object(consumer)
                 self.consumer_object.priority_list = json.dumps(consumer.priority_list)
                 db.session.commit()
@@ -116,7 +125,7 @@ class ConsumerBlock(db.Model):
                 while len(consumer.ratio_list) <= producer_index:
                     consumer.ratio_list.append(0)
                 consumer.ratio_list[producer_index] = int(value)
-                
+
                 self.consumer_object.set_consumer_object(consumer)
                 self.consumer_object.ratio_list = json.dumps(consumer.ratio_list)
                 db.session.commit()
@@ -127,7 +136,7 @@ class ConsumerBlock(db.Model):
             import os
             return os.path.basename(self.consumer_object.file_path)
         return None
-    
+
     def has_file(self):
         """Vérifie si un fichier est associé au consommateur"""
         return self.get_file_name() is not None
@@ -138,14 +147,15 @@ class ConsumerBlock(db.Model):
 
 class ProducerBlock(db.Model):
     __tablename__ = 'producer_blocks'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     prod_name = db.Column(db.String(100), nullable=False)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
     date_created = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     # Relation avec ProducerObject
-    producer_object = db.relationship('ProducerObject', backref='producer_block', uselist=False, cascade='all, delete-orphan')
+    producer_object = db.relationship('ProducerObject', backref='producer_block', uselist=False,
+                                      cascade='all, delete-orphan')
 
     def get_file_name(self):
         """Retourne le nom du fichier associé au producteur"""
@@ -153,7 +163,7 @@ class ProducerBlock(db.Model):
             import os
             return os.path.basename(self.producer_object.file_path)
         return None
-    
+
     def has_file(self):
         """Vérifie si un fichier est associé au producteur"""
         return self.get_file_name() is not None
