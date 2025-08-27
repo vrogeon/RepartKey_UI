@@ -652,11 +652,11 @@ body {
                         {% for consumer_block in consumer_blocks %}
                         <tr>
                             <td style="border: 1px solid #ddd; padding: 8px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                    <strong>{{ consumer_block.cons_name }}</strong>
-                                    <div>
-                                        <button onclick="editConsumer({{ consumer_block.id }})" class="btn btn-primary" style="margin-right: 5px; font-size: 12px; padding: 4px 8px;">Editer</button>
-                                        <button onclick="deleteConsumer({{ consumer_block.id }})" class="btn btn-danger" style="font-size: 12px; padding: 4px 8px;">Supprimer</button>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; width: 100%;">
+                                    <strong style="flex: 1; text-align: left;">{{ consumer_block.cons_name }}</strong>
+                                    <div style="display: flex; gap: 5px; flex-shrink: 0;">
+                                        <button onclick="editConsumer({{ consumer_block.id }})" class="btn btn-primary" style="font-size: 12px; padding: 4px 8px; white-space: nowrap;">Éditer</button>
+                                        <button onclick="deleteConsumer({{ consumer_block.id }})" class="btn btn-danger" style="font-size: 12px; padding: 4px 8px; white-space: nowrap;">Supprimer</button>
                                     </div>
                                 </div>
 
