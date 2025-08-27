@@ -23,6 +23,33 @@ import Graph
 import plotly.graph_objects as go
 import plotly.utils
 
+import uuid
+import shutil
+from flask import make_response
+
+# Configuration pour le mode démo
+DEMO_PROJECT_ID = -1
+DEMO_SESSIONS = {}  # Stockage des sessions démo temporaires
+
+
+def cleanup_demo_session(session_id):
+    """Nettoyer les données d'une session démo"""
+    if session_id in DEMO_SESSIONS:
+        demo_data = DEMO_SESSIONS[session_id]
+
+        # Supprimer les fichiers uploadés
+        demo_folder = os.path.join(UPLOAD_FOLDER, f'demo_{session_id}')
+        if os.path.exists(demo_folder):
+            shutil.rmtree(demo_folder)
+
+        # Supprimer les fichiers d'export
+        export_folder = os.path.join(EXPORT_FOLDER, f'demo_{session_id}')
+        if os.path.exists(export_folder):
+            shutil.rmtree(export_folder)
+
+        # Supprimer de la mémoire
+        del DEMO_SESSIONS[session_id]
+
 
 # Configuration pour l'environnement de production
 def setup_paths():
@@ -187,71 +214,79 @@ def index():
 # Routes pour le mode démo
 @app.route('/demo')
 def demo_mode():
-    """Mode démo sans authentification"""
-    # Créer un projet temporaire en session
-    if 'demo_project' not in session:
-        session['demo_project'] = {
-            'id': DEMO_PROJECT_ID,
-            'name': 'Projet Démonstration',
-            'description': 'Testez RepartKey sans créer de compte',
-            'consumer_blocks': [],
-            'producer_blocks': [],
-            'created_at': datetime.utcnow().isoformat()
-        }
+    """Mode démo sans authentification avec support complet"""
+    # Créer un identifiant unique pour cette session démo
+    demo_session_id = str(uuid.uuid4())
 
-    # Charger les données démo depuis la session
-    demo_project = session['demo_project']
+    # Initialiser la session démo
+    DEMO_SESSIONS[demo_session_id] = {
+        'id': DEMO_PROJECT_ID,
+        'session_id': demo_session_id,
+        'name': 'Projet Démonstration',
+        'description': 'Testez toutes les fonctionnalités de RepartKey',
+        'consumer_blocks': [],
+        'producer_blocks': [],
+        'created_at': datetime.utcnow().isoformat()
+    }
 
-    # Créer des objets fictifs pour l'interface
-    class DemoProject:
-        def __init__(self, data):
-            self.id = data['id']
-            self.name = data['name']
-            self.description = data['description']
+    # Créer les dossiers temporaires pour cette session
+    demo_upload_folder = os.path.join(UPLOAD_FOLDER, f'demo_{demo_session_id}')
+    demo_export_folder = os.path.join(EXPORT_FOLDER, f'demo_{demo_session_id}')
+    os.makedirs(demo_upload_folder, exist_ok=True)
+    os.makedirs(demo_export_folder, exist_ok=True)
 
-    class DemoBlock:
-        def __init__(self, data):
-            self.id = data['id']
-            self.cons_name = data.get('cons_name')
-            self.prod_name = data.get('prod_name')
-            self.has_file = lambda: False
-            self.get_file_name = lambda: None
-            self.get_priority_for_producer = lambda idx: 0
-            self.get_ratio_for_producer = lambda idx: 100
+    # Stocker l'ID de session dans un cookie
+    response = make_response(render_template('index.html',
+                                             project=type('Project', (), {
+                                                 'id': DEMO_PROJECT_ID,
+                                                 'name': 'Projet Démonstration',
+                                                 'description': 'Testez toutes les fonctionnalités'
+                                             })(),
+                                             text_blocks=[],
+                                             consumer_blocks=[],
+                                             producer_blocks=[],
+                                             project_id=DEMO_PROJECT_ID,
+                                             is_demo=True,
+                                             demo_session_id=demo_session_id))
 
-    project = DemoProject(demo_project)
-    consumer_blocks = [DemoBlock(c) for c in demo_project.get('consumer_blocks', [])]
-    producer_blocks = [DemoBlock(p) for p in demo_project.get('producer_blocks', [])]
+    response.set_cookie('demo_session_id', demo_session_id, max_age=3600)  # Expire après 1 heure
+    return response
 
-    return render_template('index.html',
-                           project=project,
-                           text_blocks=[],
-                           consumer_blocks=consumer_blocks,
-                           producer_blocks=producer_blocks,
-                           project_id=DEMO_PROJECT_ID,
-                           is_demo=True)
+@app.route('/demo/cleanup', methods=['POST'])
+def demo_cleanup():
+    """Nettoyer une session démo"""
+    demo_session_id = request.cookies.get('demo_session_id')
+    if demo_session_id:
+        cleanup_demo_session(demo_session_id)
+    return jsonify({'success': True, 'message': 'Session démo nettoyée'})
 
 
 @app.route('/demo/add_consumer', methods=['POST'])
 def demo_add_consumer():
     """Ajouter un consommateur en mode démo"""
-    if 'demo_project' not in session:
+    demo_session_id = request.cookies.get('demo_session_id')
+    if not demo_session_id or demo_session_id not in DEMO_SESSIONS:
         return jsonify({'success': False, 'message': 'Session démo expirée'})
 
     cons_name = request.form.get('cons_name')
-
-    # Générer un ID unique
     consumer_id = random.randint(1000, 9999)
 
-    # Ajouter à la session
-    if 'consumer_blocks' not in session['demo_project']:
-        session['demo_project']['consumer_blocks'] = []
+    # Créer un objet Consumer temporaire
+    producer_count = len(DEMO_SESSIONS[demo_session_id]['producer_blocks'])
+    priority_list = [0] * producer_count
+    ratio_list = [100] * producer_count
 
-    session['demo_project']['consumer_blocks'].append({
+    consumer = Consumer.Consumer(cons_name, cons_name, priority_list, ratio_list)
+
+    # Stocker dans la session
+    DEMO_SESSIONS[demo_session_id]['consumer_blocks'].append({
         'id': consumer_id,
-        'cons_name': cons_name
+        'cons_name': cons_name,
+        'consumer_object': consumer,
+        'priority_list': priority_list,
+        'ratio_list': ratio_list,
+        'file_path': None
     })
-    session.modified = True
 
     return jsonify({
         'success': True,
@@ -263,23 +298,30 @@ def demo_add_consumer():
 @app.route('/demo/add_producer', methods=['POST'])
 def demo_add_producer():
     """Ajouter un producteur en mode démo"""
-    if 'demo_project' not in session:
+    demo_session_id = request.cookies.get('demo_session_id')
+    if not demo_session_id or demo_session_id not in DEMO_SESSIONS:
         return jsonify({'success': False, 'message': 'Session démo expirée'})
 
     prod_name = request.form.get('prod_name')
-
-    # Générer un ID unique
     producer_id = random.randint(1000, 9999)
 
-    # Ajouter à la session
-    if 'producer_blocks' not in session['demo_project']:
-        session['demo_project']['producer_blocks'] = []
+    # Créer un objet Producer temporaire
+    producer = Producer.Producer(prod_name, 1234567901000)
 
-    session['demo_project']['producer_blocks'].append({
+    # Stocker dans la session
+    DEMO_SESSIONS[demo_session_id]['producer_blocks'].append({
         'id': producer_id,
-        'prod_name': prod_name
+        'prod_name': prod_name,
+        'producer_object': producer,
+        'file_path': None
     })
-    session.modified = True
+
+    # Mettre à jour tous les consommateurs existants
+    for consumer_data in DEMO_SESSIONS[demo_session_id]['consumer_blocks']:
+        consumer_data['priority_list'].append(0)
+        consumer_data['ratio_list'].append(100)
+        if consumer_data['consumer_object']:
+            consumer_data['consumer_object'].add_producer_values()
 
     return jsonify({
         'success': True,
@@ -287,6 +329,87 @@ def demo_add_producer():
         'producer_id': producer_id
     })
 
+
+@app.route('/demo/upload_consumer_file', methods=['POST'])
+def demo_upload_consumer_file():
+    """Upload de fichier consommateur en mode démo"""
+    demo_session_id = request.cookies.get('demo_session_id')
+    if not demo_session_id or demo_session_id not in DEMO_SESSIONS:
+        return jsonify({'success': False, 'message': 'Session démo expirée'})
+
+    try:
+        consumer_id = int(request.form.get('id'))
+
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': 'Aucun fichier sélectionné'})
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': 'Aucun fichier sélectionné'})
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+
+            # Sauvegarder dans le dossier temporaire de la session
+            demo_folder = os.path.join(UPLOAD_FOLDER, f'demo_{demo_session_id}')
+            filepath = os.path.join(demo_folder, f'consumer_{consumer_id}_{filename}')
+            file.save(filepath)
+
+            # Trouver le consommateur dans la session
+            for consumer_data in DEMO_SESSIONS[demo_session_id]['consumer_blocks']:
+                if consumer_data['id'] == consumer_id:
+                    consumer_data['file_path'] = filepath
+                    if consumer_data['consumer_object']:
+                        consumer_data['consumer_object'].read_consumption(filepath)
+                    break
+
+            return jsonify({'success': True, 'message': 'Fichier uploadé', 'filename': filename})
+        else:
+            return jsonify({'success': False, 'message': 'Type de fichier non autorisé'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+
+@app.route('/demo/upload_producer_file', methods=['POST'])
+def demo_upload_producer_file():
+    """Upload de fichier producteur en mode démo"""
+    demo_session_id = request.cookies.get('demo_session_id')
+    if not demo_session_id or demo_session_id not in DEMO_SESSIONS:
+        return jsonify({'success': False, 'message': 'Session démo expirée'})
+
+    try:
+        producer_id = int(request.form.get('id'))
+
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': 'Aucun fichier sélectionné'})
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': 'Aucun fichier sélectionné'})
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+
+            # Sauvegarder dans le dossier temporaire de la session
+            demo_folder = os.path.join(UPLOAD_FOLDER, f'demo_{demo_session_id}')
+            filepath = os.path.join(demo_folder, f'producer_{producer_id}_{filename}')
+            file.save(filepath)
+
+            # Trouver le producteur dans la session
+            for producer_data in DEMO_SESSIONS[demo_session_id]['producer_blocks']:
+                if producer_data['id'] == producer_id:
+                    producer_data['file_path'] = filepath
+                    if producer_data['producer_object']:
+                        producer_data['producer_object'].read_production(filepath)
+                    break
+
+            return jsonify({'success': True, 'message': 'Fichier uploadé', 'filename': filename})
+        else:
+            return jsonify({'success': False, 'message': 'Type de fichier non autorisé'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
 
 @app.route('/demo/delete_consumer/<int:consumer_id>', methods=['DELETE'])
 def demo_delete_consumer(consumer_id):
@@ -317,6 +440,156 @@ def demo_delete_producer(producer_id):
 
     return jsonify({'success': True, 'message': 'Producteur supprimé (mode démo)'})
 
+
+@app.route('/demo/compute_repartition_keys', methods=['POST'])
+def demo_compute_repartition_keys():
+    """Calculer les clés de répartition en mode démo"""
+    demo_session_id = request.cookies.get('demo_session_id')
+    if not demo_session_id or demo_session_id not in DEMO_SESSIONS:
+        return jsonify({'success': False, 'message': 'Session démo expirée'})
+
+    try:
+        key_type = request.form.get('cles', 'default')
+
+        strategy_mapping = {
+            'default': Repartition.Strategy.DYNAMIC_BY_DEFAULT,
+            'dynamic': Repartition.Strategy.DYNAMIC,
+            'static': Repartition.Strategy.STATIC
+        }
+
+        strategy = strategy_mapping.get(key_type, Repartition.Strategy.DYNAMIC_BY_DEFAULT)
+
+        # Récupérer les listes depuis la session
+        demo_data = DEMO_SESSIONS[demo_session_id]
+        prod_list = [p['producer_object'] for p in demo_data['producer_blocks'] if p['producer_object']]
+        cons_list = [c['consumer_object'] for c in demo_data['consumer_blocks'] if c['consumer_object']]
+
+        if not prod_list:
+            return jsonify({'success': False, 'message': 'Aucun producteur avec fichier ajouté'})
+
+        if not cons_list:
+            return jsonify({'success': False, 'message': 'Aucun consommateur avec fichier ajouté'})
+
+        # Vérifier que les fichiers ont été uploadés
+        has_prod_files = any(p['file_path'] for p in demo_data['producer_blocks'])
+        has_cons_files = any(c['file_path'] for c in demo_data['consumer_blocks'])
+
+        if not has_prod_files or not has_cons_files:
+            return jsonify({'success': False,
+                            'message': 'Veuillez uploader les fichiers CSV pour tous les producteurs et consommateurs'})
+
+        # Créer le dossier d'export pour cette session
+        export_folder = os.path.join(EXPORT_FOLDER, f'demo_{demo_session_id}')
+
+        rep = Repartition.Repartition()
+        rep.build_rep(prod_list, cons_list, strategy)
+        rep.write_repartition_key(prod_list, cons_list, export_folder, True)
+
+        stat_file_list = rep.generate_statistics(prod_list, cons_list, export_folder)
+        rep.generate_monthly_report(prod_list, cons_list, export_folder, add_cons_mois=False)
+
+        # Stocker les résultats dans la session
+        demo_data['stat_file_list'] = stat_file_list
+        demo_data['auto_consumption_rate'] = rep.get_auto_consumption_rate(0)
+        demo_data['auto_production_rate_global'] = rep.get_global_auto_production_rate(cons_list)
+        demo_data['coverage_rate'] = rep.get_coverage_rate(0, cons_list)
+
+        return jsonify({
+            'success': True,
+            'message': f'Calcul terminé (mode démo)',
+            'indicators': {
+                'auto_consumption_rate': round(demo_data['auto_consumption_rate'], 2),
+                'auto_production_rate_global': round(demo_data['auto_production_rate_global'], 2),
+                'coverage_rate': round(demo_data['coverage_rate'], 2)
+            }
+        })
+
+    except Exception as e:
+        print(f"Erreur lors du calcul démo : {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'})
+
+
+@app.route('/demo/data')
+def demo_chart_data():
+    """Données du graphique pour le mode démo"""
+    demo_session_id = request.cookies.get('demo_session_id')
+    if not demo_session_id or demo_session_id not in DEMO_SESSIONS:
+        return jsonify({'error': 'Session expirée'}), 404
+
+    demo_data = DEMO_SESSIONS[demo_session_id]
+    res = "jour"
+
+    try:
+        if 'stat_file_list' in demo_data and demo_data['stat_file_list']:
+            stat_file = demo_data['stat_file_list'][0]
+
+            if os.path.exists(stat_file):
+                fig = Graph.generate_graph(stat_file, ';', group=False, resolution=res)
+
+                traces = []
+                for trace in fig.data:
+                    trace_data = {
+                        'type': 'scatter',
+                        'mode': 'lines',
+                        'fill': 'tonexty' if len(traces) > 0 else 'tozeroy',
+                        'stackgroup': 'one',
+                        'name': trace.name,
+                        'x': [str(x) for x in trace.x],
+                        'y': [float(str(y)) if str(y) != 'nan' else 0 for y in trace.y]
+                    }
+                    traces.append(trace_data)
+
+                return jsonify({
+                    'data': traces,
+                    'layout': {
+                        'title': 'Autoconsommation (Mode Démo)',
+                        'xaxis': {'title': 'Date'},
+                        'yaxis': {'title': 'Autoconsommation (kWh)'}
+                    },
+                    'indicators': {
+                        'auto_consumption_rate': round(demo_data.get('auto_consumption_rate', 0), 2),
+                        'auto_production_rate_global': round(demo_data.get('auto_production_rate_global', 0), 2),
+                        'coverage_rate': round(demo_data.get('coverage_rate', 0), 2)
+                    }
+                })
+
+        return jsonify({
+            'data': [],
+            'layout': {
+                'title': 'Aucune donnée - Uploadez les fichiers et calculez',
+                'xaxis': {'title': 'Date'},
+                'yaxis': {'title': 'Autoconsommation (kWh)'}
+            },
+            'indicators': {
+                'auto_consumption_rate': 0,
+                'auto_production_rate_global': 0,
+                'coverage_rate': 0
+            }
+        })
+
+    except Exception as e:
+        print(f"Erreur graphique démo: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+# Nettoyer automatiquement les sessions démo expirées (à appeler périodiquement)
+@app.before_request
+def cleanup_old_demo_sessions():
+    """Nettoyer les vieilles sessions démo (plus d'1 heure)"""
+    import time
+    current_time = time.time()
+    sessions_to_remove = []
+
+    for session_id, data in DEMO_SESSIONS.items():
+        created_at = datetime.fromisoformat(data['created_at'])
+        age_seconds = (datetime.utcnow() - created_at).total_seconds()
+        if age_seconds > 3600:  # Plus d'1 heure
+            sessions_to_remove.append(session_id)
+
+    for session_id in sessions_to_remove:
+        cleanup_demo_session(session_id)
 
 # Route des projets
 @app.route('/projects')
