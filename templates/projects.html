@@ -474,7 +474,16 @@
         }
         
         function openProject(projectId) {
-            window.location.href = `/project/${projectId}`;
+            // Détecter le chemin de base de l'application (pour cPanel)
+            const currentPath = window.location.pathname;
+            let basePath = '';
+
+            // Détection pour cPanel
+            if (currentPath.includes('/RepartElec/')) {
+                basePath = '/RepartElec';
+            }
+
+            window.location.href = `${basePath}/project/${projectId}`;
         }
         
         function deleteProject(projectId) {
