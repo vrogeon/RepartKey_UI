@@ -75,10 +75,69 @@
             background: #007bff;
         }
     </style>
+<style>
+    .cookie-preferences-link {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 12px;
+        color: #6b7280;
+        text-decoration: none;
+        z-index: 999;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .cookie-preferences-link:hover {
+        background: #f8fafc;
+        border-color: #0891b2;
+        color: #0891b2;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    }
+
+    .cookie-preferences-link:before {
+        content: '🍪 ';
+        font-size: 14px;
+    }
+
+    #cookieBanner:not([style*="display: none"]) ~ .cookie-preferences-link {
+        display: none;
+    }
+</style>
 </head>
 <body>
     <div class="container">
         {% block content %}{% endblock %}
     </div>
+<!-- RGPD Cookie Banner -->
+{% include 'cookie_banner.html' %}
+
+<!-- Lien permanent pour les préférences de cookies -->
+<a href="#" class="cookie-preferences-link" data-open-cookie-preferences>
+    Gérer les cookies
+</a>
+
+<!-- Footer RGPD -->
+<footer style="margin-top: 40px; padding: 20px 0; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #9ca3af;">
+    <div style="max-width: 800px; margin: 0 auto; display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+        <a href="{{ url_for('cookies.cookie_policy') }}" style="color: #6b7280; text-decoration: none;">
+            Politique des cookies
+        </a>
+        <a href="#" data-open-cookie-preferences style="color: #6b7280; text-decoration: none;">
+            Préférences des cookies
+        </a>
+        <span style="color: #d1d5db;">•</span>
+        <span>© 2025 RepartKey - Respect de votre vie privée</span>
+    </div>
+    <div style="margin-top: 8px; font-size: 11px; color: #d1d5db;">
+        Vos données sont traitées conformément au RGPD
+    </div>
+</footer>
 </body>
 </html>

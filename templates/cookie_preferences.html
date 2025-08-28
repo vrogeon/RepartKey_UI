@@ -1,0 +1,564 @@
+<!-- templates/cookie_preferences.html - Page de gestion des préférences -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Préférences des Cookies - RepartKey</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+            color: #334155;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #059669, #047857);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .intro {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 24px;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 12px;
+        }
+        
+        .intro h2 {
+            color: #166534;
+            margin-bottom: 8px;
+            font-size: 20px;
+        }
+        
+        .intro p {
+            color: #15803d;
+            font-size: 14px;
+        }
+        
+        .preferences-form {
+            margin-bottom: 30px;
+        }
+        
+        .cookie-category {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .cookie-category.active {
+            border-color: #059669;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.1);
+        }
+        
+        .category-header {
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            cursor: pointer;
+            background: white;
+        }
+        
+        .toggle-container {
+            position: relative;
+        }
+        
+        .toggle-switch {
+            appearance: none;
+            width: 48px;
+            height: 26px;
+            border-radius: 13px;
+            background: #d1d5db;
+            cursor: pointer;
+            transition: background 0.3s;
+            position: relative;
+        }
+        
+        .toggle-switch:checked {
+            background: #059669;
+        }
+        
+        .toggle-switch:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .toggle-switch::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: white;
+            transition: transform 0.3s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .toggle-switch:checked::before {
+            transform: translateX(22px);
+        }
+        
+        .category-info {
+            flex: 1;
+        }
+        
+        .category-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+        
+        .category-status {
+            font-size: 12px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 500;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+        
+        .status-required {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-optional {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+        
+        .category-description {
+            color: #6b7280;
+            font-size: 14px;
+        }
+        
+        .category-details {
+            padding: 0 24px 24px 24px;
+            border-top: 1px solid #f3f4f6;
+            display: none;
+        }
+        
+        .category-details.show {
+            display: block;
+        }
+        
+        .details-content {
+            padding-top: 20px;
+        }
+        
+        .cookie-list {
+            margin-top: 16px;
+        }
+        
+        .cookie-item {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        
+        .cookie-name {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+        
+        .cookie-purpose {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        
+        .cookie-duration {
+            font-size: 12px;
+            color: #9ca3af;
+            font-style: italic;
+        }
+        
+        .actions {
+            background: #f8fafc;
+            padding: 30px 40px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            border: 1px solid;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+        
+        .btn-primary:hover {
+            background: #047857;
+            border-color: #047857;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #374151;
+            border-color: #d1d5db;
+        }
+        
+        .btn-secondary:hover {
+            background: #f9fafb;
+            border-color: #9ca3af;
+        }
+        
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+            border-color: #dc2626;
+        }
+        
+        .btn-danger:hover {
+            background: #b91c1c;
+            border-color: #b91c1c;
+        }
+        
+        .status-message {
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .status-message.success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+        
+        .status-message.error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 12px;
+            }
+            
+            .header {
+                padding: 30px 20px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .content {
+                padding: 30px 20px;
+            }
+            
+            .actions {
+                padding: 20px;
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                ⚙️
+                Préférences des Cookies
+            </h1>
+            <p>Personnalisez votre expérience sur RepartKey</p>
+        </div>
+        
+        <div class="content">
+            <div class="intro">
+                <h2>Gérez vos préférences</h2>
+                <p>
+                    Choisissez les types de cookies que vous souhaitez accepter. Vous pouvez modifier ces préférences à tout moment.
+                </p>
+            </div>
+            
+            <div id="statusMessage" class="status-message"></div>
+            
+            <form class="preferences-form" id="cookiePreferencesForm">
+                {% for category_key, category in cookie_categories.items() %}
+                <div class="cookie-category" data-category="{{ category_key }}">
+                    <div class="category-header" onclick="toggleCategoryDetails('{{ category_key }}')">
+                        <div class="toggle-container">
+                            <input 
+                                type="checkbox" 
+                                id="{{ category_key }}-cookies-pref" 
+                                class="toggle-switch"
+                                data-category="{{ category_key }}"
+                                {% if category.required %}checked disabled{% endif %}
+                            >
+                        </div>
+                        <div class="category-info">
+                            <div class="category-name">{{ category.name }}</div>
+                            <div class="category-status {{ 'status-required' if category.required else 'status-optional' }}">
+                                {{ 'Obligatoires' if category.required else 'Optionnels' }}
+                            </div>
+                            <div class="category-description">{{ category.description }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="category-details" id="details-{{ category_key }}">
+                        <div class="details-content">
+                            {% if category.cookies %}
+                            <div class="cookie-list">
+                                {% for cookie in category.cookies %}
+                                <div class="cookie-item">
+                                    <div class="cookie-name">{{ cookie.name }}</div>
+                                    <div class="cookie-purpose">{{ cookie.purpose }}</div>
+                                    <div class="cookie-duration">Durée: {{ cookie.duration }}</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p style="color: #9ca3af; font-style: italic;">Aucun cookie de cette catégorie n'est actuellement utilisé.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </form>
+        </div>
+        
+        <div class="actions">
+            <a href="{{ url_for('cookies.cookie_policy') }}" class="btn btn-secondary">
+                📋 Voir la politique complète
+            </a>
+            
+            <div class="action-buttons">
+                <button type="button" class="btn btn-danger" onclick="refuseAllCookies()">
+                    ❌ Refuser tout
+                </button>
+                <button type="button" class="btn btn-primary" onclick="savePreferences()">
+                    ✅ Sauvegarder mes préférences
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Initialiser les préférences au chargement
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCurrentPreferences();
+        });
+        
+        function loadCurrentPreferences() {
+            const consent = getCurrentConsent();
+            if (consent) {
+                const performanceCheckbox = document.getElementById('performance-cookies-pref');
+                if (performanceCheckbox) {
+                    performanceCheckbox.checked = consent.performance || false;
+                }
+            }
+        }
+        
+        function getCurrentConsent() {
+            const cookieValue = getCookie('cookie_consent');
+            if (!cookieValue) return null;
+            
+            try {
+                return JSON.parse(cookieValue);
+            } catch {
+                return null;
+            }
+        }
+        
+        function toggleCategoryDetails(categoryKey) {
+            const details = document.getElementById('details-' + categoryKey);
+            const category = document.querySelector(`[data-category="${categoryKey}"]`);
+            
+            if (details.classList.contains('show')) {
+                details.classList.remove('show');
+                category.classList.remove('active');
+            } else {
+                // Fermer les autres détails
+                document.querySelectorAll('.category-details.show').forEach(el => {
+                    el.classList.remove('show');
+                });
+                document.querySelectorAll('.cookie-category.active').forEach(el => {
+                    el.classList.remove('active');
+                });
+                
+                // Ouvrir celui-ci
+                details.classList.add('show');
+                category.classList.add('active');
+            }
+        }
+        
+        function savePreferences() {
+            const performanceCheckbox = document.getElementById('performance-cookies-pref');
+            
+            const consent = {
+                essential: true,
+                performance: performanceCheckbox ? performanceCheckbox.checked : false,
+                marketing: false
+            };
+            
+            // Sauvegarder localement
+            const consentData = {
+                ...consent,
+                version: '1.0',
+                timestamp: new Date().toISOString()
+            };
+            
+            setCookie('cookie_consent', JSON.stringify(consentData), 365);
+            
+            // Envoyer au serveur
+            fetch('/cookies/consent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(consent)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showStatusMessage('Vos préférences ont été sauvegardées avec succès !', 'success');
+                } else {
+                    showStatusMessage('Erreur lors de la sauvegarde: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showStatusMessage('Erreur de connexion lors de la sauvegarde.', 'error');
+            });
+        }
+        
+        function refuseAllCookies() {
+            // Décocher tous les cookies optionnels
+            const performanceCheckbox = document.getElementById('performance-cookies-pref');
+            if (performanceCheckbox) {
+                performanceCheckbox.checked = false;
+            }
+            
+            // Sauvegarder les préférences
+            savePreferences();
+        }
+        
+        function showStatusMessage(message, type) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.textContent = message;
+            statusDiv.className = `status-message ${type}`;
+            statusDiv.style.display = 'block';
+            
+            // Faire défiler vers le message
+            statusDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Masquer automatiquement après 5 secondes
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Utilitaires pour les cookies
+        function setCookie(name, value, days) {
+            let expires = "";
+            if (days) {
+                const date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            const secure = location.protocol === 'https:' ? '; Secure' : '';
+            document.cookie = name + "=" + (value || "") + expires + "; path=/; SameSite=Lax" + secure;
+        }
+        
+        function getCookie(name) {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for(let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+            }
+            return null;
+        }
+    </script>
+</body>
+</html>

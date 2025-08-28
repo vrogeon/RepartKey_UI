@@ -27,6 +27,9 @@ import uuid
 import shutil
 from flask import make_response
 
+from cookies_consent import CookieConsent
+from cookies_consent import cookies_bp, inject_cookie_consent
+
 # Configuration pour le mode démo
 DEMO_PROJECT_ID = -1
 DEMO_SESSIONS = {}  # Stockage des sessions démo temporaires
@@ -91,6 +94,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limite à 16MB
 app.config['SECRET_KEY'] = 'your-secret-key-change-this-in-production-2024'  # À changer en production
+
+# Pour les cookies
+app.register_blueprint(cookies_bp)
+app.context_processor(inject_cookie_consent)
 
 # Initialiser les extensions
 db.init_app(app)
