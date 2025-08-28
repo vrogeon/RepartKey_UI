@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Politique des Cookies - RepartKey</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2dd4bf 0%, #0d9488 25%, #0891b2 50%, #0e7490 75%, #164e63 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        }
+        
+        h1 {
+            color: #0891b2;
+            margin-bottom: 30px;
+            font-size: 32px;
+            border-bottom: 3px solid #0891b2;
+            padding-bottom: 15px;
+        }
+        
+        h2 {
+            color: #1e293b;
+            margin-top: 35px;
+            margin-bottom: 20px;
+            font-size: 24px;
+            position: relative;
+            padding-left: 20px;
+        }
+        
+        h2:before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 100%;
+            background: #0891b2;
+            border-radius: 2px;
+        }
+        
+        h3 {
+            color: #334155;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        p {
+            color: #475569;
+            line-height: 1.8;
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+        
+        .update-info {
+            background: #f0f9ff;
+            border-left: 4px solid #0891b2;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 0 10px 10px 0;
+        }
+        
+        .update-info strong {
+            color: #0369a1;
+        }
+        
+        .cookie-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .cookie-table th {
+            background: #0891b2;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .cookie-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .cookie-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .cookie-table tr:hover {
+            background: #f8fafc;
+        }
+        
+        .cookie-type {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 15px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .cookie-type-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .cookie-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .badge-essential {
+            background: #dcfce7;
+            color: #16a34a;
+            border: 1px solid #86efac;
+        }
+        
+        .badge-performance {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #93c5fd;
+        }
+        
+        .badge-marketing {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+        
+        ul {
+            margin: 15px 0;
+            padding-left: 30px;
+            color: #475569;
+        }
+        
+        li {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        
+        .contact-section {
+            background: #f0f9ff;
+            padding: 25px;
+            border-radius: 15px;
+            margin-top: 40px;
+            border: 2px solid #bae6fd;
+        }
+        
+        .contact-section h3 {
+            color: #0369a1;
+            margin-bottom: 15px;
+        }
+        
+        .btn-manage {
+            display: inline-block;
+            background: linear-gradient(135deg, #0891b2, #0e7490);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+        
+        .btn-manage:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(8, 145, 178, 0.3);
+        }
+        
+        .btn-back {
+            display: inline-block;
+            color: #0891b2;
+            text-decoration: none;
+            margin-bottom: 20px;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        
+        .btn-back:hover {
+            color: #0e7490;
+            text-decoration: underline;
+        }
+        
+        .legal-text {
+            font-size: 14px;
+            color: #64748b;
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .highlight {
+            background: #fef3c7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="btn-back">← Retour à l'application</a>
+        
+        <h1>🍪 Politique des Cookies</h1>
+        
+        <div class="update-info">
+            <strong>Dernière mise à jour :</strong> {{ current_date }}
+            <br>
+            <strong>Version :</strong> 1.0
+            <br>
+            <strong>Durée de validité du consentement :</strong> {{ consent_duration }} jours
+        </div>
+        
+        <h2>1. Qu'est-ce qu'un cookie ?</h2>
+        <p>
+            Un cookie est un petit fichier texte stocké sur votre appareil (ordinateur, tablette, smartphone) 
+            lorsque vous visitez notre site web. Les cookies permettent au site de mémoriser vos actions et 
+            préférences (comme la connexion, la langue, la taille de police et d'autres préférences d'affichage) 
+            sur une période de temps, afin que vous n'ayez pas à les ressaisir chaque fois que vous revenez 
+            sur le site ou naviguez d'une page à l'autre.
+        </p>
+        
+        <h2>2. Comment utilisons-nous les cookies ?</h2>
+        <p>
+            Notre site web <strong>RepartKey</strong> utilise différents types de cookies pour améliorer 
+            votre expérience utilisateur et assurer le bon fonctionnement de nos services. Conformément au 
+            Règlement Général sur la Protection des Données (RGPD) et à la directive ePrivacy, nous vous 
+            demandons votre consentement avant de placer des cookies non essentiels sur votre appareil.
+        </p>
+        
+        <h2>3. Types de cookies utilisés</h2>
+        
+        {% for cookie_type, info in cookie_types.items() %}
+        <div class="cookie-type">
+            <div class="cookie-type-title">
+                <h3>{{ info.name }}</h3>
+                <span class="cookie-badge badge-{{ cookie_type }}">
+                    {% if info.required %}Obligatoire{% else %}Optionnel{% endif %}
+                </span>
+            </div>
+            <p>{{ info.description }}</p>
+            
+            <table class="cookie-table">
+                <thead>
+                    <tr>
+                        <th>Nom du cookie</th>
+                        <th>Finalité</th>
+                        <th>Durée</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if cookie_type == 'essential' %}
+                    <tr>
+                        <td><code>session</code></td>
+                        <td>Maintient votre session de connexion active</td>
+                        <td>Session</td>
+                    </tr>
+                    <tr>
+                        <td><code>csrf_token</code></td>
+                        <td>Protection contre les attaques CSRF</td>
+                        <td>Session</td>
+                    </tr>
+                    <tr>
+                        <td><code>cookie_consent</code></td>
+                        <td>Enregistre vos préférences de cookies</td>
+                        <td>13 mois</td>
+                    </tr>
+                    <tr>
+                        <td><code>demo_session_id</code></td>
+                        <td>Identifiant de session pour le mode démonstration</td>
+                        <td>1 heure</td>
+                    </tr>
+                    {% elif cookie_type == 'performance' %}
+                    <tr>
+                        <td><code>_ga</code></td>
+                        <td>Google Analytics - Analyse du trafic</td>
+                        <td>2 ans</td>
+                    </tr>
+                    <tr>
+                        <td><code>_gid</code></td>
+                        <td>Google Analytics - Distingue les utilisateurs</td>
+                        <td>24 heures</td>
+                    </tr>
+                    <tr>
+                        <td><code>analytics_id</code></td>
+                        <td>Analyse interne des performances</td>
+                        <td>30 jours</td>
+                    </tr>
+                    {% elif cookie_type == 'marketing' %}
+                    <tr>
+                        <td><code>_fbp</code></td>
+                        <td>Facebook Pixel - Publicité ciblée</td>
+                        <td>90 jours</td>
+                    </tr>
+                    <tr>
+                        <td><code>ads_session</code></td>
+                        <td>Suivi des campagnes publicitaires</td>
+                        <td>30 jours</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+        
+        <h2>4. Votre consentement</h2>
+        <p>
+            Lors de votre première visite sur notre site, une bannière de consentement vous est présentée. 
+            Vous pouvez choisir d'accepter ou de refuser les différentes catégories de cookies. 
+            <span class="highlight">Les cookies essentiels sont toujours activés</span> car ils sont nécessaires 
+            au fonctionnement de base du site.
+        </p>
+        <p>
+            Votre consentement est valable pour une durée de <strong>13 mois</strong>. 
+            Passé ce délai, nous vous demanderons à nouveau votre consentement.
+        </p>
+        
+        <h2>5. Gestion de vos préférences</h2>
+        <p>
+            Vous pouvez à tout moment modifier vos préférences en matière de cookies en cliquant sur le 
+            bouton ci-dessous ou en accédant à la page de gestion des préférences.
+        </p>
+        
+        <a href="/cookies/preferences" class="btn-manage">
+            ⚙️ Gérer mes préférences de cookies
+        </a>
+        
+        <h2>6. Comment désactiver les cookies ?</h2>
+        <p>
+            En plus de notre système de gestion des préférences, vous pouvez également désactiver les cookies 
+            directement dans votre navigateur. Voici comment procéder pour les principaux navigateurs :
+        </p>
+        <ul>
+            <li><strong>Chrome :</strong> Paramètres → Confidentialité et sécurité → Cookies et autres données des sites</li>
+            <li><strong>Firefox :</strong> Options → Vie privée et sécurité → Cookies et données de sites</li>
+            <li><strong>Safari :</strong> Préférences → Confidentialité → Cookies et données de sites web</li>
+            <li><strong>Edge :</strong> Paramètres → Confidentialité, recherche et services → Cookies et autorisations de site</li>
+        </ul>
+        
+        <div class="legal-text">
+            <strong>⚠️ Attention :</strong> La désactivation de certains cookies peut affecter votre expérience 
+            sur notre site. Par exemple, désactiver les cookies essentiels peut vous empêcher de vous connecter 
+            ou d'utiliser certaines fonctionnalités.
+        </div>
+        
+        <h2>7. Cookies tiers</h2>
+        <p>
+            Certains de nos partenaires peuvent également déposer des cookies sur votre appareil. 
+            Ces cookies tiers sont soumis aux politiques de confidentialité de leurs propriétaires respectifs :
+        </p>
+        <ul>
+            <li><a href="https://policies.google.com/privacy" target="_blank">Google Analytics</a></li>
+            <li><a href="https://www.facebook.com/privacy/explanation" target="_blank">Facebook</a></li>
+        </ul>
+        
+        <h2>8. Vos droits RGPD</h2>
+        <p>
+            Conformément au RGPD, vous disposez des droits suivants concernant vos données personnelles :
+        </p>
+        <ul>
+            <li><strong>Droit d'accès :</strong> Obtenir une copie de vos données</li>
+            <li><strong>Droit de rectification :</strong> Corriger vos données inexactes</li>
+            <li><strong>Droit à l'effacement :</strong> Demander la suppression de vos données</li>
+            <li><strong>Droit à la limitation :</strong> Limiter le traitement de vos données</li>
+            <li><strong>Droit à la portabilité :</strong> Recevoir vos données dans un format structuré</li>
+            <li><strong>Droit d'opposition :</strong> Vous opposer au traitement de vos données</li>
+        </ul>
+        
+        <div class="contact-section">
+            <h3>📧 Contact et questions</h3>
+            <p>
+                Pour toute question concernant notre politique de cookies ou pour exercer vos droits, 
+                vous pouvez nous contacter :
+            </p>
+            <ul>
+                <li>Par email : privacy@repartkey.com</li>
+                <li>Par courrier : RepartKey - Service Protection des Données<br>
+                    [Votre adresse]</li>
+                <li>Délégué à la protection des données (DPO) : dpo@repartkey.com</li>
+            </ul>
+        </div>
+        
+        <h2>9. Modifications de cette politique</h2>
+        <p>
+            Nous nous réservons le droit de modifier cette politique de cookies à tout moment. 
+            Toute modification sera publiée sur cette page avec une date de mise à jour révisée. 
+            Nous vous encourageons à consulter régulièrement cette page pour rester informé de 
+            nos pratiques en matière de cookies.
+        </p>
+    </div>
+</body>
+</html>

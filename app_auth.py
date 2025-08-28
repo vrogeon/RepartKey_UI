@@ -27,6 +27,8 @@ import uuid
 import shutil
 from flask import make_response
 
+from cookies_consent import cookies_bp, CookieManager, CookieConsent, check_cookie_consent
+
 # Configuration pour le mode démo
 DEMO_PROJECT_ID = -1
 DEMO_SESSIONS = {}  # Stockage des sessions démo temporaires
@@ -92,6 +94,10 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limite à 16MB
 app.config['SECRET_KEY'] = 'your-secret-key-change-this-in-production-2024'  # À changer en production
 
+# Configuration RGPD
+app.config['COOKIE_CONSENT_ENABLED'] = True  # Activer/désactiver le système
+app.config['COOKIE_POLICY_VERSION'] = '1.0'  # Version de la politique
+
 # Initialiser les extensions
 db.init_app(app)
 login_manager = LoginManager()
@@ -99,6 +105,9 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Veuillez vous connecter pour accéder à cette page.'
 login_manager.login_message_category = 'error'
+
+# Enregistrer le blueprint des cookies RGPD
+app.register_blueprint(cookies_bp)
 
 # Extensions de fichiers autorisées
 ALLOWED_EXTENSIONS = {'csv'}
@@ -123,6 +132,18 @@ with app.app_context():
 
     # Migration pour ajouter les nouveaux champs aux consommateurs existants
     try:
+
+        # Vérifier que la table cookie_consents existe
+        inspector = db.inspect(db.engine)
+        tables = inspector.get_table_names()
+
+        if 'cookie_consents' in tables:
+            print("✅ Table 'cookie_consents' créée/vérifiée")
+        else:
+            print("⚠️  Table 'cookie_consents' non trouvée - création...")
+            CookieConsent.__table__.create(db.engine)
+            print("✅ Table 'cookie_consents' créée")
+
         # Vérifier si les colonnes existent déjà
         inspector = db.inspect(db.engine)
         consumer_columns = [col['name'] for col in inspector.get_columns('consumer_blocks')]
@@ -151,6 +172,121 @@ with app.app_context():
     except Exception as e:
         print(f"Migration des colonnes: {e}")
 
+
+# ========== SECTION 7: PROTECTION DES ROUTES ==========
+# Pour protéger certaines routes selon le consentement, exemple :
+
+@app.route('/analytics/dashboard')
+@login_required
+def analytics_dashboard():
+    """Tableau de bord analytique - nécessite le consentement performance"""
+
+    # Vérifier le consentement pour les cookies de performance
+    preferences = CookieManager.get_consent_preferences(request)
+    if not preferences or not preferences.get('performance', False):
+        flash('Cette page nécessite l\'acceptation des cookies de performance.', 'warning')
+        return redirect(url_for('cookies.cookie_preferences'))
+
+    # Votre code du tableau de bord...
+    return render_template('analytics/dashboard.html')
+
+
+# ========== SECTION 8: TÂCHE DE MAINTENANCE ==========
+# Ajouter une route admin pour le nettoyage manuel (optionnel)
+
+@app.route('/admin/cookies/cleanup')
+@login_required
+def cleanup_cookies():
+    """Nettoyer manuellement les anciens consentements"""
+
+    # Vérifier que l'utilisateur est admin
+    if not current_user.username == 'admin':  # Adapter selon votre logique
+        flash('Accès non autorisé', 'error')
+        return redirect(url_for('index'))
+
+    from cookies_consent import cleanup_old_consents
+    deleted_count = cleanup_old_consents()
+
+    flash(f'{deleted_count} consentements expirés supprimés.', 'success')
+    return redirect(url_for('projects'))
+
+
+# ========== SECTION 9: API POUR LE CONSENTEMENT ==========
+# Routes API supplémentaires pour une intégration JavaScript avancée
+
+@app.route('/api/cookies/status')
+def cookie_consent_status():
+    """API pour vérifier le statut du consentement"""
+    return jsonify({
+        'has_consent': CookieManager.has_valid_consent(request),
+        'preferences': CookieManager.get_consent_preferences(request),
+        'policy_version': app.config.get('COOKIE_POLICY_VERSION', '1.0')
+    })
+
+
+@app.route('/api/cookies/revoke', methods=['POST'])
+def revoke_consent():
+    """API pour révoquer le consentement"""
+
+    # Supprimer le cookie de consentement
+    response = make_response(jsonify({'success': True, 'message': 'Consentement révoqué'}))
+    response.set_cookie('cookie_consent', '', expires=0)
+
+    # Supprimer aussi les cookies non essentiels
+    for cookie_type in ['performance', 'marketing']:
+        for cookie_name in CookieManager.COOKIE_TYPES[cookie_type]['cookies']:
+            response.set_cookie(cookie_name, '', expires=0)
+
+    # Si l'utilisateur est connecté, marquer dans la base
+    if current_user.is_authenticated:
+        user_ip = CookieManager.get_real_ip(request)
+        user_agent_hash = CookieManager.get_user_identifier(request)
+
+        consent = CookieConsent.query.filter_by(
+            user_agent_hash=user_agent_hash,
+            user_id=current_user.id
+        ).first()
+
+        if consent:
+            consent.performance_cookies = False
+            consent.marketing_cookies = False
+            consent.last_updated = datetime.utcnow()
+            db.session.commit()
+
+    return response
+
+@app.before_request
+def before_request_handler():
+    """Middleware exécuté avant chaque requête"""
+
+    # Vérifier le consentement des cookies (sauf pour certaines routes)
+    excluded_paths = [
+        '/cookies/',
+        '/static/',
+        '/login',
+        '/register',
+        '/demo'
+    ]
+
+    # Ne pas vérifier pour les routes exclues
+    if not any(request.path.startswith(path) for path in excluded_paths):
+        check_cookie_consent()
+
+    # Nettoyer les vieilles sessions démo
+    if request.path.startswith('/demo'):
+        # Le code existant cleanup_old_demo_sessions() reste
+        cleanup_old_demo_sessions()
+
+# Ajouter cette fonction pour rendre les infos disponibles dans tous les templates
+
+@app.context_processor
+def inject_cookie_consent():
+    """Injecter les informations de consentement dans tous les templates"""
+    return {
+        'has_cookie_consent': CookieManager.has_valid_consent(request),
+        'cookie_preferences': CookieManager.get_consent_preferences(request),
+        'cookie_types': CookieManager.COOKIE_TYPES
+    }
 
 # Routes d'authentification
 @app.route('/login', methods=['GET', 'POST'])

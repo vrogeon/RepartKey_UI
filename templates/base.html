@@ -80,5 +80,38 @@
     <div class="container">
         {% block content %}{% endblock %}
     </div>
+    <!-- Système de consentement des cookies RGPD -->
+    {% if not has_cookie_consent %}
+        {% include 'cookie_banner.html' %}
+    {% endif %}
+
+    <!-- Script de gestion des cookies -->
+    <script>
+        // Vérifier et appliquer les préférences de cookies
+        document.addEventListener('DOMContentLoaded', function() {
+            {% if cookie_preferences %}
+                const preferences = {{ cookie_preferences|tojson|safe }};
+
+                // Si pas de consentement pour analytics, ne pas charger GA
+                if (!preferences.performance) {
+                    // Bloquer Google Analytics
+                    window['ga-disable-UA-XXXXX-Y'] = true;
+                }
+
+                // Si pas de consentement marketing, ne pas charger les pixels
+                if (!preferences.marketing) {
+                    // Bloquer Facebook Pixel, etc.
+                    window.fbq = function() {};
+                }
+            {% endif %}
+        });
+    </script>
+
+    <!-- Liens dans le footer -->
+    <footer>
+        <a href="{{ url_for('cookies.cookie_policy') }}">Politique des cookies</a> |
+        <a href="{{ url_for('cookies.cookie_preferences') }}">Gérer mes cookies</a>
+    </footer>
+
 </body>
 </html>

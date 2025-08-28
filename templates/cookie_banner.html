@@ -1,0 +1,431 @@
+<!-- cookie_banner.html - Bannière de consentement des cookies RGPD -->
+<!-- À inclure dans base.html ou dans chaque template principal -->
+
+<div id="cookieBanner" class="cookie-banner" style="display: none;">
+    <div class="cookie-content">
+        <div class="cookie-header">
+            <h3>🍪 Nous utilisons des cookies</h3>
+            <button class="cookie-close" onclick="closeCookieBanner()">&times;</button>
+        </div>
+        
+        <div class="cookie-text">
+            <p>Nous utilisons des cookies pour améliorer votre expérience sur notre site. Les cookies nous aident à :</p>
+            <ul>
+                <li>Assurer le bon fonctionnement du site (cookies essentiels)</li>
+                <li>Analyser les performances et l'utilisation (cookies de performance)</li>
+                <li>Personnaliser votre expérience (cookies marketing)</li>
+            </ul>
+        </div>
+        
+        <div class="cookie-categories">
+            <div class="cookie-category">
+                <label class="cookie-checkbox">
+                    <input type="checkbox" id="cookieEssential" checked disabled>
+                    <span class="checkmark"></span>
+                    <div class="category-info">
+                        <strong>Cookies essentiels</strong>
+                        <small>Nécessaires au fonctionnement du site (toujours actifs)</small>
+                    </div>
+                </label>
+            </div>
+            
+            <div class="cookie-category">
+                <label class="cookie-checkbox">
+                    <input type="checkbox" id="cookiePerformance">
+                    <span class="checkmark"></span>
+                    <div class="category-info">
+                        <strong>Cookies de performance</strong>
+                        <small>Nous aident à améliorer le site</small>
+                    </div>
+                </label>
+            </div>
+            
+            <div class="cookie-category">
+                <label class="cookie-checkbox">
+                    <input type="checkbox" id="cookieMarketing">
+                    <span class="checkmark"></span>
+                    <div class="category-info">
+                        <strong>Cookies marketing</strong>
+                        <small>Pour personnaliser votre expérience</small>
+                    </div>
+                </label>
+            </div>
+        </div>
+        
+        <div class="cookie-actions">
+            <button class="btn-cookie btn-accept-all" onclick="acceptAllCookies()">
+                Tout accepter
+            </button>
+            <button class="btn-cookie btn-accept-selected" onclick="acceptSelectedCookies()">
+                Accepter la sélection
+            </button>
+            <button class="btn-cookie btn-reject-all" onclick="rejectAllCookies()">
+                Refuser tout
+            </button>
+            <a href="/cookies/policy" class="cookie-link" target="_blank">
+                En savoir plus
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+.cookie-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.1);
+    z-index: 9999;
+    padding: 20px;
+    border-top: 3px solid #0891b2;
+    animation: slideUp 0.5s ease;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.cookie-content {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.cookie-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.cookie-header h3 {
+    color: #1e293b;
+    font-size: 22px;
+    margin: 0;
+}
+
+.cookie-close {
+    background: none;
+    border: none;
+    font-size: 30px;
+    color: #64748b;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+}
+
+.cookie-close:hover {
+    color: #0891b2;
+    transform: rotate(90deg);
+}
+
+.cookie-text {
+    color: #475569;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+.cookie-text ul {
+    margin: 10px 0 0 20px;
+    padding: 0;
+}
+
+.cookie-text li {
+    margin: 5px 0;
+}
+
+.cookie-categories {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.cookie-category {
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 15px;
+    border: 2px solid #e2e8f0;
+    transition: all 0.3s;
+}
+
+.cookie-category:hover {
+    border-color: #0891b2;
+    background: #f0f9ff;
+}
+
+.cookie-checkbox {
+    display: flex;
+    align-items: flex-start;
+    cursor: pointer;
+}
+
+.cookie-checkbox input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-right: 12px;
+    margin-top: 2px;
+    cursor: pointer;
+}
+
+.cookie-checkbox input[type="checkbox"]:disabled {
+    cursor: not-allowed;
+}
+
+.category-info {
+    flex: 1;
+}
+
+.category-info strong {
+    display: block;
+    color: #1e293b;
+    font-size: 15px;
+    margin-bottom: 4px;
+}
+
+.category-info small {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.cookie-actions {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.btn-cookie {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s;
+    white-space: nowrap;
+}
+
+.btn-accept-all {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.btn-accept-all:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(16, 185, 129, 0.4);
+}
+
+.btn-accept-selected {
+    background: linear-gradient(135deg, #0891b2, #0e7490);
+    color: white;
+}
+
+.btn-accept-selected:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(8, 145, 178, 0.4);
+}
+
+.btn-reject-all {
+    background: #f1f5f9;
+    color: #475569;
+    border: 2px solid #cbd5e1;
+}
+
+.btn-reject-all:hover {
+    background: #e2e8f0;
+    border-color: #94a3b8;
+}
+
+.cookie-link {
+    color: #0891b2;
+    text-decoration: none;
+    font-size: 14px;
+    padding: 12px;
+    transition: color 0.3s;
+}
+
+.cookie-link:hover {
+    color: #0e7490;
+    text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .cookie-banner {
+        padding: 15px;
+    }
+    
+    .cookie-categories {
+        grid-template-columns: 1fr;
+    }
+    
+    .cookie-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-cookie {
+        width: 100%;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .cookie-banner {
+        background: rgba(30, 41, 59, 0.98);
+        border-top-color: #0891b2;
+    }
+    
+    .cookie-header h3 {
+        color: #f1f5f9;
+    }
+    
+    .cookie-text {
+        color: #cbd5e1;
+    }
+    
+    .cookie-category {
+        background: #1e293b;
+        border-color: #334155;
+    }
+    
+    .cookie-category:hover {
+        background: #0f172a;
+    }
+    
+    .category-info strong {
+        color: #f1f5f9;
+    }
+    
+    .category-info small {
+        color: #94a3b8;
+    }
+    
+    .btn-reject-all {
+        background: #334155;
+        color: #e2e8f0;
+        border-color: #475569;
+    }
+}
+</style>
+
+<script>
+// Gestion des cookies RGPD
+const CookieConsent = {
+    // Vérifier si le consentement existe
+    hasConsent: function() {
+        return document.cookie.indexOf('cookie_consent=') !== -1;
+    },
+    
+    // Obtenir les préférences actuelles
+    getPreferences: function() {
+        const cookie = document.cookie.split('; ')
+            .find(row => row.startsWith('cookie_consent='));
+        
+        if (!cookie) return null;
+        
+        try {
+            return JSON.parse(decodeURIComponent(cookie.split('=')[1]));
+        } catch (e) {
+            return null;
+        }
+    },
+    
+    // Sauvegarder le consentement
+    saveConsent: function(preferences) {
+        fetch('/cookies/consent', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(preferences)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Consentement enregistré');
+                hideCookieBanner();
+                
+                // Recharger la page pour appliquer les préférences
+                if (preferences.performance || preferences.marketing) {
+                    location.reload();
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+        });
+    }
+};
+
+// Fonctions pour la bannière
+function showCookieBanner() {
+    const banner = document.getElementById('cookieBanner');
+    if (banner && !CookieConsent.hasConsent()) {
+        banner.style.display = 'block';
+    }
+}
+
+function hideCookieBanner() {
+    const banner = document.getElementById('cookieBanner');
+    if (banner) {
+        banner.style.display = 'none';
+    }
+}
+
+function closeCookieBanner() {
+    // Fermer sans accepter = refuser tout sauf essentiels
+    rejectAllCookies();
+}
+
+function acceptAllCookies() {
+    CookieConsent.saveConsent({
+        essential: true,
+        performance: true,
+        marketing: true
+    });
+}
+
+function acceptSelectedCookies() {
+    const performance = document.getElementById('cookiePerformance').checked;
+    const marketing = document.getElementById('cookieMarketing').checked;
+    
+    CookieConsent.saveConsent({
+        essential: true,
+        performance: performance,
+        marketing: marketing
+    });
+}
+
+function rejectAllCookies() {
+    CookieConsent.saveConsent({
+        essential: true,
+        performance: false,
+        marketing: false
+    });
+}
+
+// Afficher la bannière au chargement si nécessaire
+document.addEventListener('DOMContentLoaded', function() {
+    // Attendre un peu pour ne pas gêner le chargement initial
+    setTimeout(showCookieBanner, 1000);
+});
+</script>
