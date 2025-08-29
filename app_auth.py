@@ -151,6 +151,9 @@ with app.app_context():
     except Exception as e:
         print(f"Migration des colonnes: {e}")
 
+@app.route('/privacy')
+def privacy_policy():
+    return render_template('privacy_policy.html')
 
 # Routes d'authentification
 @app.route('/login', methods=['GET', 'POST'])
