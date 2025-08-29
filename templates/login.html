@@ -305,5 +305,11 @@
             <a href="{{ url_for('register') }}">Pas encore de compte ? S'inscrire</a>
         </div>
     </div>
+
+    <!-- Système de consentement des cookies RGPD -->
+    {% if not has_cookie_consent %}
+        {% include 'cookie_banner.html' %}
+    {% endif %}
+
 </body>
 </html>

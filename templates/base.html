@@ -80,6 +80,7 @@
     <div class="container">
         {% block content %}{% endblock %}
     </div>
+
     <!-- Système de consentement des cookies RGPD -->
     {% if not has_cookie_consent %}
         {% include 'cookie_banner.html' %}
