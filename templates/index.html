@@ -488,18 +488,22 @@ body {
     font-size: 12px;
 }
 
+/* Ajustement des marges pour la zone principale */
 .main-content {
     transition: margin-left 0.3s ease, width 0.3s ease;
     margin-left: calc(var(--sidebar-width, 50px) + 8px);
-    padding-left: 20px;
+    padding-left: 5px;  /* Réduit de 20px à 5px */
+    padding-right: 5px; /* Ajout pour équilibrer */
 }
 
+/* Ajustement de la grille de contenu */
 .content-grid {
     display: flex;
     flex-direction: column;
     height: calc(100vh - 40px);
-    gap: 20px;
+    gap: 10px;
     transition: all 0.3s ease;
+    padding: 0 5px; /* Ajout d'un petit padding latéral */
 }
 
 .grouped-block:has(#chart-container) {
@@ -549,6 +553,255 @@ body {
         transform: translateX(100%);
         opacity: 0;
     }
+}
+/* Styles pour la gestion des priorités */
+.priority-toggle {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+    cursor: pointer;
+}
+
+.priority-toggle input {
+    display: none;
+}
+
+.priority-toggle-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 24px;
+}
+
+.priority-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+.priority-toggle input:checked + .priority-toggle-slider {
+    background-color: #007bff;
+}
+
+.priority-toggle input:checked + .priority-toggle-slider:before {
+    transform: translateX(26px);
+}
+
+.priority-toggle-label {
+    font-size: 10px;
+    color: #666;
+    text-align: center;
+    margin-top: 2px;
+}
+
+#priorityTableContainer table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+#priorityTableContainer th,
+#priorityTableContainer td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+}
+
+#priorityTableContainer th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    color: #333;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#priorityTableContainer th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 11;
+    background-color: #e9ecef;
+}
+
+#priorityTableContainer td:first-child {
+    font-weight: bold;
+    background-color: #f8f9fa;
+    position: sticky;
+    left: 0;
+    z-index: 9;
+}
+
+.priority-cell {
+    min-width: 80px;
+}
+
+/* Animation pour l'apparition de la section */
+#priorityManagementSection {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Uniformisation des titres de sections */
+.section-subtitle {
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 15px;
+    padding: 8px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+}
+
+/* Ajustement des marges pour les blocs */
+.grouped-block {
+    padding: 10px !important;
+    margin: 5px !important;
+}
+
+/* Styles améliorés pour les toggles de priorités */
+.priority-toggle-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.priority-toggle {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+    cursor: pointer;
+}
+
+.priority-toggle input {
+    display: none;
+}
+
+.priority-toggle-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 24px;
+}
+
+.priority-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.priority-toggle input:checked + .priority-toggle-slider {
+    background-color: #007bff;
+}
+
+.priority-toggle input:checked + .priority-toggle-slider:before {
+    transform: translateX(26px);
+}
+
+.priority-toggle-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #333;
+    min-width: 45px;
+    text-align: left;
+}
+
+.priority-toggle-label.ratio {
+    color: #007bff;
+}
+
+.priority-toggle-label.default {
+    color: #666;
+}
+
+/* Amélioration du tableau de priorités */
+#priorityTableContainer table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+#priorityTableContainer th,
+#priorityTableContainer td {
+    border: 1px solid #ddd;
+    padding: 10px 8px;
+    text-align: center;
+}
+
+#priorityTableContainer th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    color: #333;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#priorityTableContainer th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 11;
+    background-color: #e9ecef;
+    min-width: 60px; /* Réduit car on affiche juste le numéro */
+}
+
+#priorityTableContainer td:first-child {
+    font-weight: bold;
+    font-size: 14px;
+    color: #0891b2;
+    background-color: #f8f9fa;
+    position: sticky;
+    left: 0;
+    z-index: 9;
+}
+
+.priority-cell {
+    min-width: 120px;
+}
+
+/* Animation pour l'apparition de la section */
+#priorityManagementSection {
+    animation: fadeIn 0.3s ease;
+}
+
+/* Ajustement de la grille de contenu */
+.content-grid {
+    gap: 10px !important;
 }
 
 </style>
@@ -696,7 +949,7 @@ body {
                                     </div>
                                 </div>
                             </td>
-            {% endfor %}
+                            {% endfor %}
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -710,13 +963,15 @@ body {
 
 <div class="main-content" id="mainContent">
     <div class="content-grid">
-        <div class="grouped-block" style="flex-shrink: 0;">
+        <!-- Bloc Configuration avec marges latérales réduites -->
+        <div class="grouped-block" style="flex-shrink: 0; padding: 10px; margin: 5px 0;">
             <h3 class="block-title" onclick="toggleBlock(this)">Configuration et calcul</h3>
             <div class="block-content">
                 <div style="display: flex; gap: 20px; align-items: start;">
+                    <!-- Section Configuration -->
                     <div style="flex: 1;">
+                        <h4 class="section-subtitle">Type de clés de répartition</h4>
                         <div style="margin-bottom: 10px;">
-                            <h4 style="margin-bottom: 5px;">Type de clés de répartition:</h4>
                             <select name="cles" id="cle" class="form-control" onchange="handleKeyTypeChange()" style="margin-bottom: 10px;">
                                 <option value="">--Choisir le type de clés de répartition--</option>
                                 <option value="default" selected>Dynamique par défaut</option>
@@ -730,8 +985,21 @@ body {
                         </form>
                     </div>
 
+                    <!-- Section Gestion des priorités -->
+                    <div id="priorityManagementSection" style="flex: 1.5; padding-left: 20px; border-left: 1px solid #ddd; display: none;">
+                        <h4 class="section-subtitle">Gestion des priorités</h4>
+                        <div id="priorityTableContainer" style="overflow-x: auto; max-height: 200px; overflow-y: auto;">
+                            <!-- Le tableau sera généré dynamiquement par JavaScript -->
+                        </div>
+                        <div style="margin-top: 10px; font-size: 11px; color: #666;">
+                            <strong>Mode Ratio:</strong> Utilise les ratios définis<br>
+                            <strong>Mode Défaut:</strong> Répartition au prorata de la consommation
+                        </div>
+                    </div>
+
+                    <!-- Section Indicateurs -->
                     <div style="flex: 1; padding-left: 20px; border-left: 1px solid #ddd;">
-                        <h4 style="margin-bottom: 10px; font-size: 14px;">Indicateurs</h4>
+                        <h4 class="section-subtitle">Indicateurs</h4>
                         <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                             <tbody>
                                 <tr>
@@ -759,7 +1027,8 @@ body {
             </div>
         </div>
 
-        <div class="grouped-block" style="flex: 1; padding: 10px; display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+        <!-- Bloc Graphique avec marges latérales réduites -->
+        <div class="grouped-block" style="flex: 1; padding: 10px; margin: 5px 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
             <div id="chart-container" style="width:100%; height: 100%; position: relative;">
                 <div id="chart-loading" class="loading-container">
                     <div class="loading-spinner"></div>
@@ -1533,34 +1802,7 @@ function initializeSidebar() {
 // Toggle des blocs
 window.toggleBlock = toggleBlockWithResize;
 
-// Gestion du type de clés
-function handleKeyTypeChange() {
-    const keyType = document.getElementById('cle').value;
-    const priorityFields = document.querySelectorAll('.priority-field');
-    const ratioFields = document.querySelectorAll('.ratio-field');
 
-    document.getElementById('cles_hidden').value = keyType;
-
-    if (keyType === 'default') {
-        priorityFields.forEach(field => {
-            field.classList.add('disabled');
-            field.contentEditable = 'false';
-        });
-        ratioFields.forEach(field => {
-            field.classList.add('disabled');
-            field.contentEditable = 'false';
-        });
-    } else {
-        priorityFields.forEach(field => {
-            field.classList.remove('disabled');
-            field.contentEditable = 'true';
-        });
-        ratioFields.forEach(field => {
-            field.classList.remove('disabled');
-            field.contentEditable = 'true';
-        });
-    }
-}
 
 // Chargement du graphique
 function loadChart() {
@@ -1998,6 +2240,309 @@ window.addEventListener('resize', function() {
         }
     }, 250);
 });
+
+// Objet pour stocker l'état des priorités par producteur
+let priorityModes = {};
+
+// Fonction pour collecter toutes les priorités uniques
+function getUniquePriorities() {
+    const priorities = new Set();
+    document.querySelectorAll('.priority-field').forEach(field => {
+        const value = parseInt(field.textContent.trim());
+        if (!isNaN(value)) {
+            priorities.add(value);
+        }
+    });
+    return Array.from(priorities).sort((a, b) => a - b);
+}
+
+// Fonction CORRIGÉE pour collecter tous les producteurs
+function getProducers() {
+    const producers = [];
+    
+    // Méthode 1 : Chercher dans le tableau de répartition
+    const firstRow = document.querySelector('#tableauSidebar table tbody tr:first-child');
+    if (firstRow) {
+        const cells = firstRow.querySelectorAll('td');
+        // Parcourir toutes les cellules sauf la première (qui contient les boutons d'ajout)
+        for (let i = 1; i < cells.length; i++) {
+            const cell = cells[i];
+            const strongElement = cell.querySelector('strong');
+            if (strongElement) {
+                const producerName = strongElement.textContent.trim();
+                producers.push({
+                    id: i - 1,  // Index basé sur la position
+                    name: producerName
+                });
+            }
+        }
+    }
+    
+    console.log('Found producers:', producers);
+    return producers;
+}
+
+// Fonction pour générer le tableau de gestion des priorités
+function generatePriorityTable() {
+    const priorities = getUniquePriorities();
+    const producers = getProducers();
+
+    console.log('Generating priority table - Priorities:', priorities, 'Producers:', producers);
+
+    const container = document.getElementById('priorityTableContainer');
+    if (!container) {
+        console.error('Priority table container not found');
+        return;
+    }
+
+    if (priorities.length === 0) {
+        container.innerHTML =
+            '<p style="text-align: center; color: #666; font-size: 12px;">Aucune priorité définie. Définissez des priorités dans le tableau de répartition.</p>';
+        return;
+    }
+
+    if (producers.length === 0) {
+        container.innerHTML =
+            '<p style="text-align: center; color: #666; font-size: 12px;">Aucun producteur trouvé. Ajoutez des producteurs.</p>';
+        return;
+    }
+
+    let tableHTML = '<table><thead><tr><th>P</th>'; // En-tête court pour Priorité
+
+    // En-têtes des producteurs
+    producers.forEach(prod => {
+        tableHTML += `<th class="priority-cell">${prod.name}</th>`;
+    });
+    tableHTML += '</tr></thead><tbody>';
+
+    // Lignes pour chaque priorité - JUSTE LE NUMÉRO
+    priorities.forEach(priority => {
+        tableHTML += `<tr><td>${priority}</td>`; // Juste le numéro de priorité
+
+        producers.forEach((prod, prodIndex) => {
+            const toggleId = `priority_${priority}_prod_${prodIndex}`;
+            const isChecked = getPriorityMode(priority, prodIndex) === 'ratio';
+
+            tableHTML += `
+                <td>
+                    <div class="priority-toggle-container">
+                        <label class="priority-toggle">
+                            <input type="checkbox" id="${toggleId}"
+                                   ${isChecked ? 'checked' : ''}
+                                   onchange="togglePriorityMode(${priority}, ${prodIndex}, this.checked)">
+                            <span class="priority-toggle-slider"></span>
+                        </label>
+                        <span class="priority-toggle-label ${isChecked ? 'ratio' : 'default'}">
+                            ${isChecked ? 'Ratio' : 'Défaut'}
+                        </span>
+                    </div>
+                </td>
+            `;
+        });
+
+        tableHTML += '</tr>';
+    });
+
+    tableHTML += '</tbody></table>';
+    container.innerHTML = tableHTML;
+}
+
+
+// Fonction pour obtenir le mode d'une priorité pour un producteur
+function getPriorityMode(priority, producerIndex) {
+    const key = `${priority}_${producerIndex}`;
+    // Par défaut, utiliser le mode ratio
+    if (!(key in priorityModes)) {
+        priorityModes[key] = 'ratio';
+    }
+    return priorityModes[key];
+}
+
+// Fonction pour basculer le mode d'une priorité
+function togglePriorityMode(priority, producerIndex, useRatio) {
+    const key = `${priority}_${producerIndex}`;
+    priorityModes[key] = useRatio ? 'ratio' : 'default';
+
+    console.log(`Toggle priority ${priority} for producer ${producerIndex}: ${priorityModes[key]}`);
+
+    // Mettre à jour l'affichage du label
+    const toggleId = `priority_${priority}_prod_${producerIndex}`;
+    const toggleElement = document.getElementById(toggleId);
+    if (toggleElement) {
+        const labelElement = toggleElement.closest('.priority-toggle-container').querySelector('.priority-toggle-label');
+        if (labelElement) {
+            labelElement.textContent = useRatio ? 'Ratio' : 'Défaut';
+            labelElement.className = `priority-toggle-label ${useRatio ? 'ratio' : 'default'}`;
+        }
+    }
+
+    // Appliquer les changements aux champs ratio concernés
+    updateRatioFieldsForPriority(priority, producerIndex, useRatio);
+}
+
+// Fonction pour mettre à jour les champs ratio en fonction du mode de priorité
+function updateRatioFieldsForPriority(priority, producerIndex, useRatio) {
+    // Trouver tous les champs avec cette priorité et ce producteur
+    document.querySelectorAll(`.priority-field[data-producer-index="${producerIndex}"]`).forEach(priorityField => {
+        const currentPriority = parseInt(priorityField.textContent.trim());
+        if (currentPriority === priority) {
+            // Trouver le champ ratio correspondant
+            const consumerId = priorityField.getAttribute('data-consumer-id');
+            const ratioField = document.querySelector(
+                `.ratio-field[data-consumer-id="${consumerId}"][data-producer-index="${producerIndex}"]`
+            );
+            
+            if (ratioField) {
+                if (useRatio) {
+                    // Activer le champ ratio
+                    ratioField.classList.remove('disabled');
+                    ratioField.contentEditable = 'true';
+                    ratioField.style.backgroundColor = 'white';
+                    ratioField.style.opacity = '1';
+                } else {
+                    // Désactiver le champ ratio (mode par défaut)
+                    ratioField.classList.add('disabled');
+                    ratioField.contentEditable = 'false';
+                    ratioField.style.backgroundColor = '#f0f0f0';
+                    ratioField.style.opacity = '0.6';
+                }
+            }
+        }
+    });
+}
+
+function handleKeyTypeChange() {
+    const keyType = document.getElementById('cle').value;
+    const priorityFields = document.querySelectorAll('.priority-field');
+    const ratioFields = document.querySelectorAll('.ratio-field');
+    const prioritySection = document.getElementById('priorityManagementSection');
+
+    document.getElementById('cles_hidden').value = keyType;
+
+    console.log('Key type changed to:', keyType);
+
+    if (keyType === 'default') {
+        // Mode par défaut : désactiver tous les champs
+        priorityFields.forEach(field => {
+            field.classList.add('disabled');
+            field.contentEditable = 'false';
+        });
+        ratioFields.forEach(field => {
+            field.classList.add('disabled');
+            field.contentEditable = 'false';
+        });
+        
+        // Cacher la section de gestion des priorités
+        if (prioritySection) {
+            prioritySection.style.display = 'none';
+        }
+        
+    } else if (keyType === 'dynamic') {
+        // Mode dynamique : activer les champs et afficher la gestion des priorités
+        priorityFields.forEach(field => {
+            field.classList.remove('disabled');
+            field.contentEditable = 'true';
+        });
+        ratioFields.forEach(field => {
+            field.classList.remove('disabled');
+            field.contentEditable = 'true';
+        });
+        
+        // Afficher et générer le tableau de gestion des priorités
+        if (prioritySection) {
+            console.log('Showing priority management section');
+            prioritySection.style.display = 'block';
+            
+            // Générer le tableau après un court délai pour s'assurer que tout est chargé
+            setTimeout(() => {
+                generatePriorityTable();
+                
+                // Appliquer les modes de priorité existants
+                Object.keys(priorityModes).forEach(key => {
+                    const [priority, producerIndex] = key.split('_').map(Number);
+                    const mode = priorityModes[key];
+                    updateRatioFieldsForPriority(priority, producerIndex, mode === 'ratio');
+                });
+            }, 100);
+        } else {
+            console.error('Priority management section not found');
+        }
+        
+    } else {
+        // Autres modes : activer tous les champs mais cacher la gestion des priorités
+        priorityFields.forEach(field => {
+            field.classList.remove('disabled');
+            field.contentEditable = 'true';
+        });
+        ratioFields.forEach(field => {
+            field.classList.remove('disabled');
+            field.contentEditable = 'true';
+        });
+        
+        // Cacher la section de gestion des priorités
+        if (prioritySection) {
+            prioritySection.style.display = 'none';
+        }
+    }
+}
+
+// Fonction pour rafraîchir le tableau de priorités
+function refreshPriorityTable() {
+    if (document.getElementById('cle').value === 'dynamic') {
+        console.log('Refreshing priority table');
+        setTimeout(() => {
+            generatePriorityTable();
+        }, 100);
+    }
+}
+
+// Attendre que le DOM soit chargé pour ajouter les extensions
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Priority management system initializing...');
+    
+    // Attendre un peu que toutes les autres fonctions soient chargées
+    setTimeout(() => {
+        // Sauvegarder les références originales SI ELLES EXISTENT
+        if (typeof window.addProducerToTable === 'function') {
+            const originalAddProducerToTable = window.addProducerToTable;
+            window.addProducerToTable = function(producerData) {
+                originalAddProducerToTable(producerData);
+                refreshPriorityTable();
+            };
+        }
+        
+        if (typeof window.removeProducerFromTable === 'function') {
+            const originalRemoveProducerFromTable = window.removeProducerFromTable;
+            window.removeProducerFromTable = function(producerId) {
+                originalRemoveProducerFromTable(producerId);
+                refreshPriorityTable();
+            };
+        }
+        
+        if (typeof window.updateConsumerData === 'function') {
+            const originalUpdateConsumerData = window.updateConsumerData;
+            window.updateConsumerData = function(element) {
+                originalUpdateConsumerData(element);
+                if (element.getAttribute('data-field-type') === 'priority') {
+                    setTimeout(refreshPriorityTable, 500);
+                }
+            };
+        }
+        
+        // Vérifier si on est déjà en mode dynamic au chargement
+        const currentKeyType = document.getElementById('cle').value;
+        if (currentKeyType === 'dynamic') {
+            const prioritySection = document.getElementById('priorityManagementSection');
+            if (prioritySection) {
+                prioritySection.style.display = 'block';
+                generatePriorityTable();
+            }
+        }
+        
+        console.log('Priority management system initialized');
+    }, 500);
+});
+
 </script>
 
 {% endblock %}
