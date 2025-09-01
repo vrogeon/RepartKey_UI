@@ -804,6 +804,65 @@ body {
     gap: 10px !important;
 }
 
+/* Styles pour la validation des ratios */
+.ratio-field.error {
+    border: 2px solid #dc3545 !important;
+    background-color: #fff5f5 !important;
+}
+
+.validation-error {
+    background: #dc3545;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    margin: 10px 0;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.validation-error-icon {
+    font-size: 18px;
+}
+
+.ratio-sum-indicator {
+    position: absolute;
+    top: -25px;
+    right: 0;
+    background: #dc3545;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: bold;
+    display: none;
+}
+
+.ratio-sum-indicator.warning {
+    background: #ffc107;
+    color: #333;
+}
+
+.ratio-sum-indicator.valid {
+    background: #28a745;
+}
+
+.ratio-sum-indicator.visible {
+    display: block;
+}
+
+/* Animation pour attirer l'attention */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+.ratio-field.error {
+    animation: shake 0.5s ease-in-out;
+}
+
 </style>
 
 <!-- Panneau latéral pour le tableau de répartition -->
@@ -1695,6 +1754,17 @@ function updateConsumerData(element) {
     const fieldType = element.getAttribute('data-field-type');
     const value = element.textContent.trim();
 
+    // Si c'est un champ ratio, obtenir la priorité pour validation
+    let priority = null;
+    if (fieldType === 'ratio') {
+        const priorityField = document.querySelector(
+            `.priority-field[data-consumer-id="${consumerId}"][data-producer-index="${producerIndex}"]`
+        );
+        if (priorityField) {
+            priority = parseInt(priorityField.textContent.trim());
+        }
+    }
+
     const data = {
         consumer_id: consumerId,
         producer_index: parseInt(producerIndex),
@@ -1713,6 +1783,17 @@ function updateConsumerData(element) {
     .then(data => {
         if (data.success) {
             console.log('Données mises à jour avec succès');
+
+            // Si c'est un ratio, valider et afficher l'indicateur de somme
+            if (fieldType === 'ratio' && priority !== null) {
+                showRatioSumIndicator(priority, parseInt(producerIndex));
+
+                // Valider après un court délai pour laisser le temps à l'UI de se mettre à jour
+                setTimeout(() => {
+                    validateRatioSums();
+                }, 100);
+            }
+
             showMessage('Valeur mise à jour', 'success');
         } else {
             console.error('Erreur lors de la mise à jour:', data.message);
@@ -2184,6 +2265,22 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('computeForm').addEventListener('submit', function(e) {
         e.preventDefault();
 
+        // Valider les ratios si on est en mode dynamique
+        const keyType = document.getElementById('cle').value;
+        if (keyType === 'dynamic') {
+            if (!validateRatioSums()) {
+                showMessage('Erreur: La somme des ratios dépasse 100% pour certaines priorités. Veuillez corriger avant de calculer.', 'error');
+
+                // Faire défiler jusqu'au message d'erreur
+                const errorElement = document.querySelector('.validation-error');
+                if (errorElement) {
+                    errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+
+                return;
+            }
+        }
+
         const submitButton = this.querySelector('button[type="submit"]');
         const originalText = submitButton.textContent;
         submitButton.disabled = true;
@@ -2259,7 +2356,7 @@ function getUniquePriorities() {
 // Fonction CORRIGÉE pour collecter tous les producteurs
 function getProducers() {
     const producers = [];
-    
+
     // Méthode 1 : Chercher dans le tableau de répartition
     const firstRow = document.querySelector('#tableauSidebar table tbody tr:first-child');
     if (firstRow) {
@@ -2277,7 +2374,7 @@ function getProducers() {
             }
         }
     }
-    
+
     console.log('Found producers:', producers);
     return producers;
 }
@@ -2391,7 +2488,7 @@ function updateRatioFieldsForPriority(priority, producerIndex, useRatio) {
             const ratioField = document.querySelector(
                 `.ratio-field[data-consumer-id="${consumerId}"][data-producer-index="${producerIndex}"]`
             );
-            
+
             if (ratioField) {
                 if (useRatio) {
                     // Activer le champ ratio
@@ -2421,6 +2518,10 @@ function handleKeyTypeChange() {
 
     console.log('Key type changed to:', keyType);
 
+    // Supprimer les erreurs de validation existantes
+    document.querySelectorAll('.validation-error').forEach(error => error.remove());
+    document.querySelectorAll('.ratio-field.error').forEach(field => field.classList.remove('error'));
+
     if (keyType === 'default') {
         // Mode par défaut : désactiver tous les champs
         priorityFields.forEach(field => {
@@ -2431,12 +2532,11 @@ function handleKeyTypeChange() {
             field.classList.add('disabled');
             field.contentEditable = 'false';
         });
-        
-        // Cacher la section de gestion des priorités
+
         if (prioritySection) {
             prioritySection.style.display = 'none';
         }
-        
+
     } else if (keyType === 'dynamic') {
         // Mode dynamique : activer les champs et afficher la gestion des priorités
         priorityFields.forEach(field => {
@@ -2447,29 +2547,26 @@ function handleKeyTypeChange() {
             field.classList.remove('disabled');
             field.contentEditable = 'true';
         });
-        
-        // Afficher et générer le tableau de gestion des priorités
+
         if (prioritySection) {
-            console.log('Showing priority management section');
             prioritySection.style.display = 'block';
-            
-            // Générer le tableau après un court délai pour s'assurer que tout est chargé
+
             setTimeout(() => {
                 generatePriorityTable();
-                
+
                 // Appliquer les modes de priorité existants
                 Object.keys(priorityModes).forEach(key => {
                     const [priority, producerIndex] = key.split('_').map(Number);
                     const mode = priorityModes[key];
                     updateRatioFieldsForPriority(priority, producerIndex, mode === 'ratio');
                 });
+
+                // Valider les ratios
+                validateRatioSums();
             }, 100);
-        } else {
-            console.error('Priority management section not found');
         }
-        
     } else {
-        // Autres modes : activer tous les champs mais cacher la gestion des priorités
+        // Autres modes
         priorityFields.forEach(field => {
             field.classList.remove('disabled');
             field.contentEditable = 'true';
@@ -2478,8 +2575,7 @@ function handleKeyTypeChange() {
             field.classList.remove('disabled');
             field.contentEditable = 'true';
         });
-        
-        // Cacher la section de gestion des priorités
+
         if (prioritySection) {
             prioritySection.style.display = 'none';
         }
@@ -2499,7 +2595,7 @@ function refreshPriorityTable() {
 // Attendre que le DOM soit chargé pour ajouter les extensions
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Priority management system initializing...');
-    
+
     // Attendre un peu que toutes les autres fonctions soient chargées
     setTimeout(() => {
         // Sauvegarder les références originales SI ELLES EXISTENT
@@ -2510,7 +2606,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 refreshPriorityTable();
             };
         }
-        
+
         if (typeof window.removeProducerFromTable === 'function') {
             const originalRemoveProducerFromTable = window.removeProducerFromTable;
             window.removeProducerFromTable = function(producerId) {
@@ -2518,7 +2614,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 refreshPriorityTable();
             };
         }
-        
+
         if (typeof window.updateConsumerData === 'function') {
             const originalUpdateConsumerData = window.updateConsumerData;
             window.updateConsumerData = function(element) {
@@ -2528,7 +2624,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             };
         }
-        
+
         // Vérifier si on est déjà en mode dynamic au chargement
         const currentKeyType = document.getElementById('cle').value;
         if (currentKeyType === 'dynamic') {
@@ -2538,10 +2634,193 @@ document.addEventListener('DOMContentLoaded', function() {
                 generatePriorityTable();
             }
         }
-        
+
         console.log('Priority management system initialized');
     }, 500);
 });
+
+// Objet pour stocker les erreurs de validation
+let validationErrors = {};
+
+// Fonction pour valider la somme des ratios pour toutes les priorités
+function validateRatioSums() {
+    validationErrors = {};
+    let hasErrors = false;
+
+    // Collecter toutes les priorités uniques
+    const priorities = getUniquePriorities();
+    const producers = getProducers();
+
+    console.log('Validating ratio sums for priorities:', priorities);
+
+    // Pour chaque priorité et chaque producteur
+    priorities.forEach(priority => {
+        producers.forEach((producer, producerIndex) => {
+            const ratioSum = calculateRatioSumForPriority(priority, producerIndex);
+
+            if (ratioSum > 100) {
+                const key = `priority_${priority}_producer_${producerIndex}`;
+                validationErrors[key] = {
+                    priority: priority,
+                    producerIndex: producerIndex,
+                    producerName: producer.name,
+                    sum: ratioSum
+                };
+                hasErrors = true;
+
+                console.error(`Erreur: Priorité ${priority}, Producteur ${producer.name}: Somme des ratios = ${ratioSum}%`);
+            }
+        });
+    });
+
+    // Mettre à jour l'affichage
+    updateValidationDisplay();
+
+    return !hasErrors;
+}
+
+// Fonction pour calculer la somme des ratios pour une priorité et un producteur donnés
+function calculateRatioSumForPriority(priority, producerIndex) {
+    let sum = 0;
+
+    // Parcourir tous les champs de priorité pour ce producteur
+    document.querySelectorAll(`.priority-field[data-producer-index="${producerIndex}"]`).forEach(priorityField => {
+        const currentPriority = parseInt(priorityField.textContent.trim());
+
+        if (currentPriority === priority) {
+            // Trouver le champ ratio correspondant
+            const consumerId = priorityField.getAttribute('data-consumer-id');
+            const ratioField = document.querySelector(
+                `.ratio-field[data-consumer-id="${consumerId}"][data-producer-index="${producerIndex}"]`
+            );
+
+            if (ratioField && !ratioField.classList.contains('disabled')) {
+                const ratioValue = parseInt(ratioField.textContent.trim()) || 0;
+                sum += ratioValue;
+            }
+        }
+    });
+
+    return sum;
+}
+
+// Fonction pour mettre à jour l'affichage des erreurs de validation
+function updateValidationDisplay() {
+    // Réinitialiser tous les champs
+    document.querySelectorAll('.ratio-field.error').forEach(field => {
+        field.classList.remove('error');
+    });
+
+    // Supprimer les messages d'erreur existants
+    const existingErrors = document.querySelectorAll('.validation-error');
+    existingErrors.forEach(error => error.remove());
+
+    // S'il n'y a pas d'erreurs, ne rien faire
+    if (Object.keys(validationErrors).length === 0) {
+        return;
+    }
+
+    // Créer un message d'erreur consolidé
+    const errorContainer = document.createElement('div');
+    errorContainer.className = 'validation-error';
+    errorContainer.innerHTML = `
+        <span class="validation-error-icon">⚠️</span>
+        <div>
+            <strong>Erreur de validation des ratios</strong><br>
+            <small>La somme des ratios pour les priorités suivantes dépasse 100% :</small>
+            <ul style="margin: 5px 0 0 20px; font-size: 12px;">
+    `;
+
+    // Ajouter les détails des erreurs et marquer les champs
+    Object.values(validationErrors).forEach(error => {
+        errorContainer.innerHTML += `
+            <li>Priorité ${error.priority}, ${error.producerName}: ${error.sum}% (max: 100%)</li>
+        `;
+
+        // Marquer les champs ratio concernés
+        markErrorFields(error.priority, error.producerIndex);
+    });
+
+    errorContainer.innerHTML += `
+            </ul>
+            <small style="margin-top: 5px; display: block;">Veuillez corriger les ratios avant de calculer les clés de répartition.</small>
+        </div>
+    `;
+
+    // Ajouter le message d'erreur dans la section configuration
+    const configSection = document.querySelector('#priorityManagementSection');
+    if (configSection && document.getElementById('cle').value === 'dynamic') {
+        configSection.insertBefore(errorContainer, configSection.firstChild);
+    } else {
+        // Si pas en mode dynamic ou pas de section priorité, l'ajouter dans le bloc configuration
+        const configBlock = document.querySelector('.grouped-block .block-content');
+        if (configBlock) {
+            configBlock.insertBefore(errorContainer, configBlock.firstChild);
+        }
+    }
+}
+
+// Fonction pour marquer les champs en erreur
+function markErrorFields(priority, producerIndex) {
+    document.querySelectorAll(`.priority-field[data-producer-index="${producerIndex}"]`).forEach(priorityField => {
+        const currentPriority = parseInt(priorityField.textContent.trim());
+
+        if (currentPriority === priority) {
+            const consumerId = priorityField.getAttribute('data-consumer-id');
+            const ratioField = document.querySelector(
+                `.ratio-field[data-consumer-id="${consumerId}"][data-producer-index="${producerIndex}"]`
+            );
+
+            if (ratioField && !ratioField.classList.contains('disabled')) {
+                ratioField.classList.add('error');
+            }
+        }
+    });
+}
+
+// Fonction pour afficher un indicateur de somme en temps réel
+function showRatioSumIndicator(priority, producerIndex) {
+    const sum = calculateRatioSumForPriority(priority, producerIndex);
+
+    // Trouver tous les champs ratio concernés et ajouter un indicateur
+    document.querySelectorAll(`.priority-field[data-producer-index="${producerIndex}"]`).forEach(priorityField => {
+        const currentPriority = parseInt(priorityField.textContent.trim());
+
+        if (currentPriority === priority) {
+            const consumerId = priorityField.getAttribute('data-consumer-id');
+            const ratioField = document.querySelector(
+                `.ratio-field[data-consumer-id="${consumerId}"][data-producer-index="${producerIndex}"]`
+            );
+
+            if (ratioField && !ratioField.classList.contains('disabled')) {
+                // Créer ou mettre à jour l'indicateur
+                let indicator = ratioField.parentElement.querySelector('.ratio-sum-indicator');
+                if (!indicator) {
+                    indicator = document.createElement('div');
+                    indicator.className = 'ratio-sum-indicator';
+                    ratioField.parentElement.style.position = 'relative';
+                    ratioField.parentElement.appendChild(indicator);
+                }
+
+                indicator.textContent = `Σ = ${sum}%`;
+                indicator.classList.remove('warning', 'valid', 'visible');
+
+                if (sum > 100) {
+                    indicator.classList.add('visible');
+                } else if (sum > 90) {
+                    indicator.classList.add('warning', 'visible');
+                } else if (sum === 100) {
+                    indicator.classList.add('valid', 'visible');
+                }
+
+                // Masquer après 3 secondes
+                setTimeout(() => {
+                    indicator.classList.remove('visible');
+                }, 3000);
+            }
+        }
+    });
+}
 
 </script>
 
