@@ -1051,8 +1051,8 @@ body {
                             <!-- Le tableau sera généré dynamiquement par JavaScript -->
                         </div>
                         <div style="margin-top: 10px; font-size: 11px; color: #666;">
-                            <strong>Mode Ratio:</strong> Utilise les ratios définis<br>
-                            <strong>Mode Défaut:</strong> Répartition au prorata de la consommation
+                            <strong>Mode Manuel :</strong> Les ratios sont modifiables manuellement.<br>
+                            <strong>Mode Automatique :</strong> Les ratios sont calculés de manière égale entre les consommateurs.
                         </div>
                     </div>
 
@@ -2430,7 +2430,7 @@ function generatePriorityTable() {
                             <span class="priority-toggle-slider"></span>
                         </label>
                         <span class="priority-toggle-label ${isChecked ? 'ratio' : 'default'}">
-                            ${isChecked ? 'Ratio' : 'Défaut'}
+                            ${isChecked ? 'Manuel' : 'Défaut'}
                         </span>
                     </div>
                 </td>
@@ -2458,23 +2458,116 @@ function getPriorityMode(priority, producerIndex) {
 // Fonction pour basculer le mode d'une priorité
 function togglePriorityMode(priority, producerIndex, useRatio) {
     const key = `${priority}_${producerIndex}`;
-    priorityModes[key] = useRatio ? 'ratio' : 'default';
-
-    console.log(`Toggle priority ${priority} for producer ${producerIndex}: ${priorityModes[key]}`);
-
-    // Mettre à jour l'affichage du label
+    priorityModes[key] = useRatio ? 'manual' : 'auto';
     const toggleId = `priority_${priority}_prod_${producerIndex}`;
     const toggleElement = document.getElementById(toggleId);
     if (toggleElement) {
         const labelElement = toggleElement.closest('.priority-toggle-container').querySelector('.priority-toggle-label');
         if (labelElement) {
-            labelElement.textContent = useRatio ? 'Ratio' : 'Défaut';
-            labelElement.className = `priority-toggle-label ${useRatio ? 'ratio' : 'default'}`;
+            labelElement.textContent = useRatio ? 'Manuel' : 'Automatique';
+            labelElement.className = `priority-toggle-label ${useRatio ? 'manual' : 'auto'}`;
         }
     }
 
-    // Appliquer les changements aux champs ratio concernés
+    // Si on passe en mode Manuel
+    if (useRatio) {
+        document.querySelectorAll(`.ratio-field[data-producer-index="${producerIndex}"]`).forEach(field => {
+            const currentPriority = parseInt(field.closest('tr').querySelector('.priority-field').textContent.trim());
+            if (currentPriority === priority) {
+                // Récupérer la valeur actuelle (soit la valeur manuelle sauvegardée, soit celle affichée)
+                const currentValue = field.hasAttribute('data-manual-value')
+                    ? field.getAttribute('data-manual-value')
+                    : field.textContent.trim();
+
+                // Mettre à jour côté serveur
+                const formData = {
+                    consumer_id: field.getAttribute('data-consumer-id'),
+                    producer_index: producerIndex,
+                    field_type: 'ratio',
+                    value: parseInt(currentValue) || 0
+                };
+
+                fetch(urlManager.getUpdateConsumerDataUrl(), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        console.error('Erreur lors de la mise à jour du ratio en mode Manuel:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                });
+
+                // Restaurer la valeur manuelle dans le champ
+                if (field.hasAttribute('data-manual-value')) {
+                    field.textContent = field.getAttribute('data-manual-value');
+                }
+            }
+        });
+    } else {
+        // Sinon, recalculer les ratios (sans modifier l'affichage)
+        recalculateRatiosForPriority(priority, producerIndex);
+    }
+
     updateRatioFieldsForPriority(priority, producerIndex, useRatio);
+}
+
+// Nouvelle fonction pour recalculer les ratios en mode Automatique
+function recalculateRatiosForPriority(priority, producerIndex) {
+    const consumerFields = document.querySelectorAll(`.priority-field[data-producer-index="${producerIndex}"]`);
+    let consumerCount = 0;
+    const consumerIds = [];
+    consumerFields.forEach(field => {
+        const currentPriority = parseInt(field.textContent.trim());
+        if (currentPriority === priority) {
+            consumerCount++;
+            const consumerId = field.getAttribute('data-consumer-id');
+            consumerIds.push(consumerId);
+        }
+    });
+
+    if (consumerCount > 0) {
+        const equalRatio = 100 / consumerCount;
+        consumerIds.forEach(consumerId => {
+            const ratioField = document.querySelector(`.ratio-field[data-consumer-id="${consumerId}"][data-producer-index="${producerIndex}"]`);
+            if (ratioField) {
+                // Sauvegarder la valeur manuelle actuelle
+                if (!ratioField.hasAttribute('data-manual-value')) {
+                    ratioField.setAttribute('data-manual-value', ratioField.textContent);
+                }
+                // Ne pas modifier l'affichage, mais envoyer la valeur calculée au serveur
+                const formData = {
+                    consumer_id: consumerId,
+                    producer_index: producerIndex,
+                    field_type: 'ratio',
+                    value: equalRatio.toFixed(0)
+                };
+                // Appeler updateConsumerData avec la valeur calculée
+                fetch(urlManager.getUpdateConsumerDataUrl(), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        console.error('Erreur lors de la mise à jour du ratio:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                });
+            }
+        });
+    }
 }
 
 // Fonction pour mettre à jour les champs ratio en fonction du mode de priorité
@@ -2821,6 +2914,28 @@ function showRatioSumIndicator(priority, producerIndex) {
         }
     });
 }
+
+// Gestion de la touche Entrée pour valider les champs priorité et ratio
+document.querySelectorAll('.priority-field, .ratio-field').forEach(field => {
+    field.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault(); // Empêche le saut de ligne
+            this.blur(); // Déclenche la perte de focus, ce qui appelle updateConsumerData via onblur
+        }
+    });
+});
+
+// Gestion de la touche Entrée pour valider les champs priorité et ratio
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.priority-field, .ratio-field').forEach(field => {
+        field.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Empêche le saut de ligne
+                this.blur(); // Déclenche la validation
+            }
+        });
+    });
+});
 
 </script>
 
