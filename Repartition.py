@@ -144,132 +144,124 @@ class Repartition:
                 # This ensures that sum of all keys does not exceed 100%
                 param.key = math.floor(param.auto_consumption * 1000 / point.prod_list[index_param].initial_production) / 10
 
-    # Function to calculate repartition keys
     def calculate_rep_key_dynamic(self, current_priority, point):
+        """
+        Calcule dynamiquement la clé de répartition pour les consommateurs en fonction de la priorité actuelle.
+        Met à jour l'état des consommateurs et la production disponible.
+        """
+        priority_exists = self._check_priority_exists(point, current_priority)
 
-        # self.count += 1
-        # print('count = ', self.count)
+        self._update_consumers_and_production(point, current_priority, priority_exists)
 
-        # Variable to check if there is at least one consumer with current priority
-        priority_exist = False
+        if self._should_recurse(point, current_priority, priority_exists):
+            self._update_ratios_and_recurse(point, current_priority)
 
-        # First iterates on all consumers to assign consumption according the ratio
+        if not self.are_consumers_active(point):
+            self._reactivate_consumers(point)
+
+        if priority_exists:
+            self.calculate_rep_key_dynamic(current_priority + 1, point)
+
+        self._compute_final_ratios(point)
+
+    def _check_priority_exists(self, point, current_priority):
+        """Vérifie si au moins un consommateur a la priorité actuelle."""
+        return any(
+            any(param.priority == current_priority for param in cons.param_list)
+            for cons in point.cons_list
+        )
+
+    def _update_consumers_and_production(self, point, current_priority, priority_exists):
+        """Met à jour l'état des consommateurs et la production en fonction de la priorité."""
         for cons in point.cons_list:
+            if cons.state != State.ACTIVE:
+                continue
 
-            # Check if consumer has the current priority for one of the producer
-            for param in cons.param_list:
-                if param.priority == current_priority:
-                    priority_exist = True
+            priority_params = [
+                param for param in cons.param_list
+                if param.priority == current_priority
+            ]
 
-            # Manage only enabled consumers and matching current priority
-            if cons.state == State.ACTIVE:
-                if priority_exist == True:
+            if not priority_params:
+                cons.state = State.INACTIVE
+                continue
 
-                    prod_total = 0
-                    for param, prod in zip(cons.param_list, point.prod_list):
-                        if param.priority == current_priority:
-                            prod_total += (prod.production * param.key) / 100
+            prod_total = sum(
+                (prod.production * param.key) / 100
+                for param, prod in zip(cons.param_list, point.prod_list)
+                if param.priority == current_priority
+            )
 
-                    # No production to use anymore with this priority => de-activate the consumer
-                    if prod_total == 0:
-                        cons.state = State.INACTIVE
+            if prod_total == 0:
+                cons.state = State.INACTIVE
+                continue
 
-                    # Get current auto_consumption used from all producers
-                    auto_consumption_total = 0
-                    for param in cons.param_list:
-                            auto_consumption_total += param.auto_consumption
+            auto_consumption_total = sum(param.auto_consumption for param in cons.param_list)
 
-                    # Check if consumption from autocollect is going to exceed consumption
-                    if cons.consumption < (prod_total + auto_consumption_total):
-                        # If this is the case, set consumer to COMPLETE state
-                        cons.state = State.COMPLETE
+            # Check if current consumption remaining is greather than total production available + total of autoconsumption
+            #
+            if cons.consumption >= (prod_total + auto_consumption_total):
+                for param, prod in zip(cons.param_list, point.prod_list):
+                    if param.priority == current_priority:
+                        new_prod = (param.key * prod.production) / 100
+                        prod.prod_to_remove += new_prod
+                        param.auto_consumption += new_prod
+            else:
+                cons.state = State.COMPLETE
+                key_total = sum(param.key for param in priority_params)
+                remaining_consumption = cons.consumption - auto_consumption_total
+                for param, prod in zip(cons.param_list, point.prod_list):
+                    if param.priority == current_priority:
+                        new_prod = prod.production * (param.key / 100) * (remaining_consumption / prod_total)
+                        param.auto_consumption += new_prod
+                        prod.prod_to_remove += new_prod
 
-                        # Sum key to get new ratio
-                        key_total = 0
-                        for param in cons.param_list:
-                            if param.priority == current_priority:
-                                key_total += param.key
-
-                        # Loop on all param to add consumption for consumer
-                        for param, prod in zip(cons.param_list, point.prod_list):
-                            if param.priority == current_priority:
-                                # Compute the new production by first getting part of production using the key,
-                                # then applying ratio using remaining consumption compared to total production.
-                                new_prod = prod.production * (param.key / 100) * ((cons.consumption - auto_consumption_total) / prod_total)
-                                param.auto_consumption += new_prod
-                                prod.prod_to_remove += new_prod
-
-                    else:
-                        # If not, set auto_consumption according to the initial ratio
-                        for param, prod in zip(cons.param_list, point.prod_list):
-                            if param.priority == current_priority:
-                                new_prod = (param.key * prod.production) / 100
-                                prod.prod_to_remove += new_prod
-                                param.auto_consumption += new_prod
-
-                    # logger.debug("Consommation est égale à %f", cons.auto_consumption)
-                    # logger.debug("Production utilisée: %f", prod_used)
-                else:
-                    cons.state = State.INACTIVE
-
-
-        # Refresh production by removing what has been consumed by consumers
         for prod in point.prod_list:
             prod.production -= prod.prod_to_remove
             prod.prod_to_remove = 0
 
-        # Get total production available
-        prod_total = 0
-        for prod in point.prod_list:
-            prod_total += prod.production
+    def _should_recurse(self, point, current_priority, priority_exists):
+        """Vérifie si la fonction doit s'appeler récursivement."""
+        prod_total = sum(prod.production for prod in point.prod_list)
+        return (
+                prod_total > 0
+                and self.are_consumers_active(point)
+                and priority_exists
+        )
 
-        # If not all the production is used, and at least one consumer still enabled:
-        # compute new ratios
-        # and recursively call this function
-        if ( (prod_total > 0)
-            and self.are_consumers_active(point)
-            and priority_exist):
+    def _update_ratios_and_recurse(self, point, current_priority):
+        """Met à jour les ratios et appelle récursivement la fonction."""
+        new_sum = [
+            sum(
+                cons.param_list[index_prod].key
+                for cons in point.cons_list
+                if cons.state == State.ACTIVE
+                and cons.param_list[index_prod].priority == current_priority
+            )
+            for index_prod in range(len(point.prod_list))
+        ]
 
-            # Sum ratio of all enabled consumers
-            new_sum = []
-            for index_prod, prod in enumerate(point.prod_list):
-                new_sum.append(0)
-                for cons in point.cons_list:
-                    if (cons.state == State.ACTIVE and
-                        cons.param_list[index_prod].priority == current_priority):
-                        new_sum[index_prod] +=  cons.param_list[index_prod].key
+        for cons in point.cons_list:
+            if cons.state == State.ACTIVE:
+                for index_param, param in enumerate(cons.param_list):
+                    if param.priority == current_priority:
+                        param.key = (100 * param.key) / new_sum[index_param]
 
-            # Compute new ratios
-            for cons in point.cons_list:
-                # Manage only enabled consumers
-                if cons.state == State.ACTIVE:
-                    index_param = 0
-                    for param in cons.param_list:
-                        if param.priority == current_priority:
-                            param.key = (100 * param.key) / new_sum[index_param]
-                        index_param += 1
+        self.calculate_rep_key_dynamic(current_priority, point)
 
-            # Call again the function
-            self.calculate_rep_key_dynamic(current_priority, point)
+    def _reactivate_consumers(self, point):
+        """Réactive les consommateurs inactifs pour la prochaine itération."""
+        for cons in point.cons_list:
+            if cons.state == State.INACTIVE:
+                cons.state = State.ACTIVE
 
-        # Reactivate consumer for next iteration
-        if not self.are_consumers_active(point):
-            for cons in point.cons_list:
-                if cons.state == State.INACTIVE:
-                    cons.state = State.ACTIVE
-
-        if priority_exist:
-            # increase priority
-            current_priority += 1
-            # Call again the function
-            self.calculate_rep_key_dynamic(current_priority, point)
-
-        # Compute final ratio for each consumer
+    def _compute_final_ratios(self, point):
+        """Calcule le ratio final pour chaque consommateur."""
         for cons in point.cons_list:
             for index_param, param in enumerate(cons.param_list):
-                # Use floor function to round to lower value.
-                # This ensures that sum of all keys does not exceed 100%
-                param.key = math.floor(param.auto_consumption * 1000 / point.prod_list[index_param].initial_production) / 10
+                param.key = math.floor(
+                    param.auto_consumption * 1000 / point.prod_list[index_param].initial_production
+                ) / 10
 
     # Function to build repartition
     def build_rep(self, prod_list, cons_list, type):
@@ -536,15 +528,18 @@ class Repartition:
     # This function get auto_consumption rate for a specific producer
     # Auto_consumption rate is defined as:
     # (sum of auto_consumption for all users) / (production of producer)
-    def get_auto_consumption_rate(self, index_producer):
+    def get_auto_consumption_rate(self, index_producer, index_consumer = None):
 
         total_auto_consumption = 0
         total_production = 0
         for row in self.point_list:
 
-            # First get all auto_consumption for the specific producer
-            for cons in row.cons_list:
-                total_auto_consumption += cons.param_list[index_producer].auto_consumption
+            # Get all auto_consumption for the specific producer
+            if index_consumer == None:
+                for cons in row.cons_list:
+                    total_auto_consumption += cons.param_list[index_producer].auto_consumption
+            else:
+                total_auto_consumption += row.cons_list[index_consumer].param_list[index_producer].auto_consumption
 
             # Then get sum of production
             total_production += row.prod_list[index_producer].initial_production
@@ -557,14 +552,17 @@ class Repartition:
     # This function get auto_production rate for a specific consumer
     # Auto_production rate is defined as:
     # (sum of auto_consumption) / (sum of consumption)
-    def get_auto_production_rate(self, index_consumer):
+    def get_auto_production_rate(self, index_consumer, index_producer = None):
 
         total_auto_consumption = 0
         total_consumption = 0
         for row in self.point_list:
 
-            for param in row.cons_list[index_consumer].param_list:
-                total_auto_consumption += param.auto_consumption
+            if index_producer == None:
+                for param in row.cons_list[index_consumer].param_list:
+                    total_auto_consumption += param.auto_consumption
+            else:
+                total_auto_consumption += row.cons_list[index_consumer].param_list[index_producer].auto_consumption
 
             total_consumption += row.cons_list[index_consumer].consumption
 

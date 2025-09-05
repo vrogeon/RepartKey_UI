@@ -1070,15 +1070,29 @@ def compute_repartition_keys(project_id):
         project_stats[project_id]['auto_production_rate_global'] = rep.get_global_auto_production_rate(cons_list)
         project_stats[project_id]['coverage_rate'] = rep.get_coverage_rate(0, cons_list)
 
+        auto_consumption_rate = []
+        for prod_index, producer in enumerate(prod_list):
+            auto_consumption_rate.append([])
+            for cons_index, consumer in enumerate(cons_list):
+                auto_consumption_rate[prod_index].append(rep.get_auto_consumption_rate(prod_index, cons_index))
+        project_stats[project_id]['auto_consumption_rate_detailed'] = auto_consumption_rate
+
+        auto_production_rate = []
+        for cons_index, consumer in enumerate(cons_list):
+            auto_production_rate.append([])
+            for prod_index, producer in enumerate(prod_list):
+                auto_production_rate[cons_index].append(rep.get_auto_production_rate(cons_index, prod_index))
+        project_stats[project_id]['auto_production_rate_detailed'] = auto_production_rate
+
         return jsonify({
-            'success': True,
-            'message': f'Calcul des clés de répartition terminé avec succès (Stratégie: {key_type})',
-            'indicators': {
-                'auto_consumption_rate': round(project_stats[project_id]['auto_consumption_rate'], 2),
-                'auto_production_rate_global': round(project_stats[project_id]['auto_production_rate_global'], 2),
-                'coverage_rate': round(project_stats[project_id]['coverage_rate'], 2)
-            }
-        })
+                'success': True,
+                'message': f'Calcul des clés de répartition terminé avec succès (Stratégie: {key_type})',
+                'indicators': {
+                    'auto_consumption_rate': round(project_stats[project_id]['auto_consumption_rate'], 2),
+                    'auto_production_rate_global': round(project_stats[project_id]['auto_production_rate_global'], 2),
+                    'coverage_rate': round(project_stats[project_id]['coverage_rate'], 2)
+                }
+            })
 
     except Exception as e:
         print(f"Erreur lors du calcul : {str(e)}")
@@ -1433,6 +1447,56 @@ def update_producer(project_id, producer_id):
 
     return render_template('update_producer.html', producer_block=producer_block, project_id=project_id)
 
+@app.route('/project/<int:project_id>/detailed_indicators', methods=['GET'])
+@login_required
+def get_detailed_indicators(project_id):
+    """
+    Retourne les indicateurs détaillés (taux d'autoproduction et d'autoconsommation)
+    pour chaque consommateur et producteur d'un projet, en utilisant leurs index.
+    """
+    project = Project.query.get_or_404(project_id)
+    if project.user_id != current_user.id:
+        return jsonify({'error': 'Non autorisé'}), 403
+
+    try:
+        # Récupérer les objets Producer et Consumer pour ce projet
+        prod_list = get_prod_list(project_id)
+        cons_list = get_cons_list(project_id)
+
+        if not prod_list or not cons_list:
+            return jsonify({
+                'success': False,
+                'message': 'Aucun producteur ou consommateur trouvé pour ce projet.'
+            }), 404
+
+        # Exemple : Calculer les indicateurs (à adapter selon votre logique métier)
+        # Ici, on utilise les index des listes prod_list et cons_list
+        indicators = []
+        for cons_index, consumer in enumerate(cons_list):
+            for prod_index, producer in enumerate(prod_list):
+
+                # rep = Repartition.Repartition()
+                auto_production_rate = project_stats[project_id]['auto_production_rate_detailed'][cons_index][prod_index]
+                auto_consumption_rate = project_stats[project_id]['auto_consumption_rate_detailed'][prod_index][cons_index]
+
+                indicators.append({
+                    'consumer_id': cons_index,  # Index du consommateur dans cons_list
+                    'producer_id': prod_index,   # Index du producteur dans prod_list
+                    'auto_production_rate': round(auto_production_rate, 2),
+                    'auto_consumption_rate': round(auto_consumption_rate, 2)
+                })
+
+        return jsonify({
+            'success': True,
+            'indicators': indicators
+        })
+
+    except Exception as e:
+        print(f"Erreur lors de la récupération des indicateurs détaillés : {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Erreur serveur : {str(e)}'
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=False)

@@ -863,6 +863,110 @@ body {
     animation: shake 0.5s ease-in-out;
 }
 
+/* Style pour les cellules avec diagonale pour l'entête */
+.diagonal-cell-header {
+    position: relative;
+    min-width: 80px;
+    height: 35px;
+    padding: 0 !important;
+}
+
+/* Diagonale en pseudo-élément */
+.diagonal-cell-header::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom left, #f8f9fa 50%, #eee 50%, #eee 50%, #eee);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Conteneur pour les valeurs */
+.diagonal-cell-header .value-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+/* TAP (en bas à gauche) */
+.diagonal-cell-header .TAP {
+    position: absolute;
+    bottom: 5%;
+    left: 5%;
+    font-size: 11px;
+    text-align: left;
+    background-color: #eee;
+}
+
+/* TAC (en haut à droite) */
+.diagonal-cell-header .TAC {
+    position: absolute;
+    top: 5%;
+    right: 5%;
+    font-size: 11px;
+    text-align: right;
+    background-color: #f8f9fa;
+}
+
+/* Style pour les cellules avec diagonale */
+.diagonal-cell {
+    position: relative;
+    min-width: 80px;
+    height: 50px;
+    padding: 0 !important;
+}
+
+/* Diagonale en pseudo-élément */
+.diagonal-cell::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom left, #f8f9fa 50%, #eee 50%, #eee 50%, #eee);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Conteneur pour les valeurs */
+.diagonal-cell .value-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+/* Valeur d'autoproduction (en bas à gauche) */
+.diagonal-cell .auto-production-rate {
+    position: absolute;
+    bottom: 5%;
+    left: 5%;
+    font-size: 11px;
+    width: 45%;
+    text-align: left;
+    background-color: #eee;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+/* Valeur d'autoconsommation (en haut à droite) */
+.diagonal-cell .auto-consumption-rate {
+    position: absolute;
+    top: 5%;
+    right: 5%;
+    font-size: 11px;
+    width: 45%;
+    text-align: right;
+    background-color: #f8f9fa;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
 </style>
 
 <!-- Panneau latéral pour le tableau de répartition -->
@@ -1062,13 +1166,13 @@ body {
                         <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                             <tbody>
                                 <tr>
-                                    <td style="border: 1px solid #ddd; padding: 6px; background-color: #f8f9fa; font-weight: bold; color: #666;">Taux d'autoconsommation</td>
+                                    <td style="border: 1px solid #ddd; padding: 6px; background-color: #f8f9fa; font-weight: bold; color: #666;">TAC (Taux d'autoconsommation)</td>
                                     <td id="auto_consumption_rate" class="indicator-value" style="border: 1px solid #ddd; padding: 6px; background-color: white; text-align: right;">
                                         <span class="indicator-loading">...</span>
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td style="border: 1px solid #ddd; padding: 6px; background-color: #f8f9fa; font-weight: bold; color: #666;">Taux d'autoproduction global</td>
+                                    <td style="border: 1px solid #ddd; padding: 6px; background-color: #f8f9fa; font-weight: bold; color: #666;">TAC (Taux d'autoproduction) global</td>
                                     <td id="auto_production_rate_global" class="indicator-value" style="border: 1px solid #ddd; padding: 6px; background-color: white; text-align: right;">
                                         <span class="indicator-loading">...</span>
                                     </td>
@@ -1079,6 +1183,51 @@ body {
                                         <span class="indicator-loading">...</span>
                                     </td>
                                 </tr>
+                            </tbody>
+                        </table>
+                        <table id="detailedIndicatorsTable" style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px;">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2" style="position: relative; width: 150px; border: 1px solid #ddd; padding: 8px; background-color: #f8f9fa;">
+                                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+                                            <div class="diagonal-cell-header">
+                                                <div class="TAP">TAP</div>
+                                                <div class="TAC">TAC</div>
+                                            </div>
+                                        </div>
+                                    </th>
+                                    <!-- En-têtes des producteurs (générés dynamiquement) -->
+                                    {% for producer_block in producer_blocks %}
+                                        <th style="border: 1px solid #ddd; padding: 8px; background-color: #f8f9fa; text-align: center;">{{ producer_block.prod_name }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Lignes pour chaque consommateur (générées dynamiquement) -->
+                                {% for consumer_block in consumer_blocks %}
+                                    {% set cons_index = loop.index0 %}  <!-- Stockez l'index du consommateur -->
+                                    <tr>
+                                        <th style="background-color: #eee;">{{ consumer_block.cons_name }}</th>
+                                        {% for producer_block in producer_blocks %}
+                                            <td style="border: 1px solid #ddd; padding: 0; position: relative;" class="diagonal-cell">
+                                                <div class="value-container">
+                                                    <!-- Valeur d'autoproduction (en bas à gauche) -->
+                                                    <div class="auto-production-rate"
+                                                         data-consumer-id="{{ cons_index }}"
+                                                         data-producer-id="{{ loop.index0 }}">
+                                                        -
+                                                    </div>
+                                                    <!-- Valeur d'autoconsommation (en haut à droite) -->
+                                                    <div class="auto-consumption-rate"
+                                                         data-consumer-id="{{ cons_index }}"
+                                                         data-producer-id="{{ loop.index0 }}">
+                                                        -
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
                             </tbody>
                         </table>
                     </div>
@@ -1153,6 +1302,10 @@ class URLManager {
         return this.buildUrl('/compute_repartition_keys');
     }
 
+    getDetailedIndicatorsUrl() {  // Nouvelle méthode
+        return this.buildUrl('/detailed_indicators');
+    }
+
     getUpdateConsumerDataUrl() {
         return this.buildUrl('/update_consumer_data');
     }
@@ -1180,6 +1333,7 @@ class URLManager {
     getUpdateProducerUrl(id) {
         return this.buildUrl(`/update_producer/${encodeURIComponent(id)}`);
     }
+
 }
 
 // Classe pour le mode démo
@@ -1204,6 +1358,10 @@ class DemoURLManager {
 
     getComputeUrl() {
         return this.buildUrl('/compute_repartition_keys');
+    }
+
+    getDetailedIndicatorsUrl() {  // Nouvelle méthode
+        return this.buildUrl('/detailed_indicators');
     }
 
     getUpdateConsumerDataUrl() {
@@ -1233,6 +1391,7 @@ class DemoURLManager {
     getCleanupUrl() {
         return this.buildUrl('/cleanup');
     }
+
 }
 
 // Configuration du mode démo au chargement
@@ -2306,6 +2465,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (data.indicators) {
                     updateIndicators(data.indicators);
+                    loadDetailedIndicators(projectIdFromTemplate);
                 }
 
                 loadChart();
@@ -2936,6 +3096,53 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Fonction pour charger les indicateurs détaillés (inspirée de updateIndicators)
+function loadDetailedIndicators() {
+    // Utilisez la méthode dédiée de urlManager
+    const url = urlManager.getDetailedIndicatorsUrl();
+
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.indicators) {
+                data.indicators.forEach(indicator => {
+                    // Mettre à jour la valeur d'autoproduction (en bas à gauche)
+                    document.querySelectorAll('.auto-production-rate').forEach(el => {
+                        if (
+                            el.getAttribute('data-consumer-id') == indicator.consumer_id.toString() &&
+                            el.getAttribute('data-producer-id') == indicator.producer_id.toString()
+                        ) {
+                            // Format avec une décimale
+                            el.textContent = `${parseFloat(indicator.auto_production_rate).toFixed(1)}%`;
+                        }
+                    });
+
+                    // Mettre à jour la valeur d'autoconsommation (en haut à droite)
+                    document.querySelectorAll('.auto-consumption-rate').forEach(el => {
+                        if (
+                            el.getAttribute('data-consumer-id') == indicator.consumer_id.toString() &&
+                            el.getAttribute('data-producer-id') == indicator.producer_id.toString()
+                        ) {
+                            // Format avec une décimale
+                            el.textContent = `${parseFloat(indicator.auto_consumption_rate).toFixed(1)}%`;
+                        }
+                    });
+                });
+            } else {
+                console.error('Erreur:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+        });
+}
+
 
 </script>
 
