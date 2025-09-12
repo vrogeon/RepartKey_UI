@@ -550,15 +550,15 @@ def demo_compute_repartition_keys():
         # Stocker les résultats dans la session
         demo_data['stat_file_list'] = stat_file_list
         demo_data['stat_file_generated'] = True
-        demo_data['auto_consumption_rate'] = rep.get_auto_consumption_rate(0)
-        demo_data['auto_production_rate_global'] = rep.get_global_auto_production_rate(cons_list)
-        demo_data['coverage_rate'] = rep.get_coverage_rate(0, cons_list)
+        demo_data['auto_consumption_rate_global'] = rep.get_auto_consumption_rate()
+        demo_data['auto_production_rate_global'] = rep.get_auto_production_rate()
+        demo_data['coverage_rate'] = rep.get_coverage_rate()
 
         return jsonify({
             'success': True,
             'message': f'Calcul terminé (mode démo)',
             'indicators': {
-                'auto_consumption_rate': round(demo_data['auto_consumption_rate'], 2),
+                'auto_consumption_rate_global': round(demo_data['auto_consumption_rate_global'], 2),
                 'auto_production_rate_global': round(demo_data['auto_production_rate_global'], 2),
                 'coverage_rate': round(demo_data['coverage_rate'], 2)
             }
@@ -616,7 +616,7 @@ def demo_chart_data():
                         }
                     },
                     'indicators': {
-                        'auto_consumption_rate': round(demo_data.get('auto_consumption_rate', 0), 2),
+                        'auto_consumption_rate_global': round(demo_data.get('auto_consumption_rate_global', 0), 2),
                         'auto_production_rate_global': round(demo_data.get('auto_production_rate_global', 0), 2),
                         'coverage_rate': round(demo_data.get('coverage_rate', 0), 2)
                     }
@@ -638,7 +638,7 @@ def demo_chart_data():
                 }]
             },
             'indicators': {
-                'auto_consumption_rate': 0,
+                'auto_consumption_rate_global': 0,
                 'auto_production_rate_global': 0,
                 'coverage_rate': 0
             }
@@ -683,11 +683,11 @@ def projects():
 def create_project():
     form = ProjectForm()
 
-    # Vérifier la limite de projets (10 max)
+    # Vérifier la limite de projets (3 max)
     user_projects_count = current_user.projects.count()
-    if user_projects_count >= 10:
+    if user_projects_count >= 3:
         flash(
-            'Vous avez atteint la limite de 10 projets. Veuillez supprimer un projet existant pour en créer un nouveau.',
+            'Vous avez atteint la limite de 3 projets. Veuillez supprimer un projet existant pour en créer un nouveau.',
             'error')
         return redirect(url_for('projects'))
 
@@ -1066,29 +1066,35 @@ def compute_repartition_keys(project_id):
 
         project_stats[project_id]['stat_file_list'] = stat_file_list
         project_stats[project_id]['stat_file_generated'] = True
-        project_stats[project_id]['auto_consumption_rate'] = rep.get_auto_consumption_rate(0)
-        project_stats[project_id]['auto_production_rate_global'] = rep.get_global_auto_production_rate(cons_list)
-        project_stats[project_id]['coverage_rate'] = rep.get_coverage_rate(0, cons_list)
+        project_stats[project_id]['auto_consumption_rate_global'] = rep.get_auto_consumption_rate()
+        project_stats[project_id]['auto_production_rate_global'] = rep.get_auto_production_rate()
+        project_stats[project_id]['coverage_rate'] = rep.get_coverage_rate()
 
         auto_consumption_rate = []
+        auto_consumption_rate_detailed = []
         for prod_index, producer in enumerate(prod_list):
-            auto_consumption_rate.append([])
+            auto_consumption_rate.append(rep.get_auto_consumption_rate(index_producer=prod_index))
+            auto_consumption_rate_detailed.append([])
             for cons_index, consumer in enumerate(cons_list):
-                auto_consumption_rate[prod_index].append(rep.get_auto_consumption_rate(prod_index, cons_index))
-        project_stats[project_id]['auto_consumption_rate_detailed'] = auto_consumption_rate
+                auto_consumption_rate_detailed[prod_index].append(rep.get_auto_consumption_rate(index_producer=prod_index, index_consumer=cons_index))
+        project_stats[project_id]['auto_consumption_rate'] = auto_consumption_rate
+        project_stats[project_id]['auto_consumption_rate_detailed'] = auto_consumption_rate_detailed
 
         auto_production_rate = []
+        auto_production_rate_detailed = []
         for cons_index, consumer in enumerate(cons_list):
-            auto_production_rate.append([])
+            auto_production_rate.append(rep.get_auto_production_rate(index_consumer=cons_index))
+            auto_production_rate_detailed.append([])
             for prod_index, producer in enumerate(prod_list):
-                auto_production_rate[cons_index].append(rep.get_auto_production_rate(cons_index, prod_index))
-        project_stats[project_id]['auto_production_rate_detailed'] = auto_production_rate
+                auto_production_rate_detailed[cons_index].append(rep.get_auto_production_rate(index_consumer=cons_index, index_producer=prod_index))
+        project_stats[project_id]['auto_production_rate'] = auto_production_rate
+        project_stats[project_id]['auto_production_rate_detailed'] = auto_production_rate_detailed
 
         return jsonify({
                 'success': True,
                 'message': f'Calcul des clés de répartition terminé avec succès (Stratégie: {key_type})',
                 'indicators': {
-                    'auto_consumption_rate': round(project_stats[project_id]['auto_consumption_rate'], 2),
+                    'auto_consumption_rate_global': round(project_stats[project_id]['auto_consumption_rate_global'], 2),
                     'auto_production_rate_global': round(project_stats[project_id]['auto_production_rate_global'], 2),
                     'coverage_rate': round(project_stats[project_id]['coverage_rate'], 2)
                 }
@@ -1157,7 +1163,7 @@ def chart_data(project_id):
                         }
                     },
                     'indicators': {
-                        'auto_consumption_rate': round(project_stats[project_id]['auto_consumption_rate'], 2),
+                        'auto_consumption_rate_global': round(project_stats[project_id]['auto_consumption_rate_global'], 2),
                         'auto_production_rate_global': round(project_stats[project_id]['auto_production_rate_global'],
                                                              2),
                         'coverage_rate': round(project_stats[project_id]['coverage_rate'], 2)
@@ -1183,7 +1189,7 @@ def chart_data(project_id):
                 }]
             },
             'indicators': {
-                'auto_consumption_rate': 0,
+                'auto_consumption_rate_global': 0,
                 'auto_production_rate_global': 0,
                 'coverage_rate': 0
             }
@@ -1208,7 +1214,7 @@ def chart_data(project_id):
                 }]
             },
             'indicators': {
-                'auto_consumption_rate': 0,
+                'auto_consumption_rate_global': 0,
                 'auto_production_rate_global': 0,
                 'coverage_rate': 0
             }
@@ -1475,7 +1481,6 @@ def get_detailed_indicators(project_id):
         for cons_index, consumer in enumerate(cons_list):
             for prod_index, producer in enumerate(prod_list):
 
-                # rep = Repartition.Repartition()
                 auto_production_rate = project_stats[project_id]['auto_production_rate_detailed'][cons_index][prod_index]
                 auto_consumption_rate = project_stats[project_id]['auto_consumption_rate_detailed'][prod_index][cons_index]
 
@@ -1486,9 +1491,15 @@ def get_detailed_indicators(project_id):
                     'auto_consumption_rate': round(auto_consumption_rate, 2)
                 })
 
+        # Calculer les taux globaux
+        global_auto_consumption_rates = {str(prod_index): project_stats[project_id]['auto_consumption_rate'][prod_index] for prod_index in range(len(prod_list))}
+        global_auto_production_rates = {str(cons_index): project_stats[project_id]['auto_production_rate'][cons_index] for cons_index in range(len(cons_list))}
+
         return jsonify({
             'success': True,
-            'indicators': indicators
+            'indicators': indicators,
+            'global_auto_consumption_rates': global_auto_consumption_rates,
+            'global_auto_production_rates': global_auto_production_rates
         })
 
     except Exception as e:

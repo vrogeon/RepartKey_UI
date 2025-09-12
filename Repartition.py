@@ -527,22 +527,28 @@ class Repartition:
 
     # This function get auto_consumption rate for a specific producer
     # Auto_consumption rate is defined as:
-    # (sum of auto_consumption for all users) / (production of producer)
-    def get_auto_consumption_rate(self, index_producer, index_consumer = None):
+    # (sum of auto_consumption)  / (sum of production)
+    def get_auto_consumption_rate(self, index_producer=None, index_consumer=None):
 
         total_auto_consumption = 0
         total_production = 0
         for row in self.point_list:
 
             # Get all auto_consumption for the specific producer
-            if index_consumer == None:
-                for cons in row.cons_list:
-                    total_auto_consumption += cons.param_list[index_producer].auto_consumption
+            if index_producer == None:
+                for index, prod in enumerate(row.prod_list):
+                    for cons in row.cons_list:
+                        total_auto_consumption += cons.param_list[index].auto_consumption
+                    # Then get sum of production
+                    total_production += row.prod_list[index].initial_production
             else:
-                total_auto_consumption += row.cons_list[index_consumer].param_list[index_producer].auto_consumption
-
-            # Then get sum of production
-            total_production += row.prod_list[index_producer].initial_production
+                if index_consumer == None:
+                    for cons in row.cons_list:
+                        total_auto_consumption += cons.param_list[index_producer].auto_consumption
+                else:
+                    total_auto_consumption += row.cons_list[index_consumer].param_list[index_producer].auto_consumption
+                # Then get sum of production
+                total_production += row.prod_list[index_producer].initial_production
 
         # Compute auto_consumption rate
         auto_consumption_rate = int(total_auto_consumption * 1000 / total_production) / 10
@@ -552,62 +558,54 @@ class Repartition:
     # This function get auto_production rate for a specific consumer
     # Auto_production rate is defined as:
     # (sum of auto_consumption) / (sum of consumption)
-    def get_auto_production_rate(self, index_consumer, index_producer = None):
+    def get_auto_production_rate(self, index_consumer=None, index_producer=None):
 
         total_auto_consumption = 0
         total_consumption = 0
         for row in self.point_list:
 
-            if index_producer == None:
-                for param in row.cons_list[index_consumer].param_list:
-                    total_auto_consumption += param.auto_consumption
+            if index_consumer == None:
+                for index, cons in enumerate(row.cons_list):
+                    for param in row.cons_list[index].param_list:
+                        total_auto_consumption += param.auto_consumption
+                    # Then get sum of consumption
+                    total_consumption += cons.consumption
             else:
-                total_auto_consumption += row.cons_list[index_consumer].param_list[index_producer].auto_consumption
-
-            total_consumption += row.cons_list[index_consumer].consumption
+                if index_producer == None:
+                    for param in row.cons_list[index_consumer].param_list:
+                        total_auto_consumption += param.auto_consumption
+                else:
+                    total_auto_consumption += row.cons_list[index_consumer].param_list[index_producer].auto_consumption
+                # Then get sum of consumption
+                total_consumption += row.cons_list[index_consumer].consumption
 
         # Compute auto_production rate
         auto_production_rate = int(total_auto_consumption * 1000 / total_consumption) / 10
 
         return auto_production_rate
 
-    # This function get global auto_production rate
-    # Auto_production rate is defined as:
-    # (sum of auto_consumption of all consumers) / (sum of consumption of all consumers)
-    def get_global_auto_production_rate(self, cons_list):
-
-        total_auto_consumption = 0
-        total_consumption = 0
-        for row in self.point_list:
-
-            for cons in row.cons_list:
-                for param in cons.param_list:
-                    total_auto_consumption += param.auto_consumption
-
-        for cons in cons_list:
-            for point in cons.point_list:
-                total_consumption += point.cons
-
-        # Compute auto_production rate
-        global_auto_production_rate = int(total_auto_consumption * 1000 / total_consumption) / 10
-
-        return global_auto_production_rate
-
-
     # This function get coverage rate
     # Coverage rate is defined as:
-    # (production of producer) / (sum of consumption of consumer)
-    def get_coverage_rate(self, index_producer, cons_list):
+    # (sum of production) / (sum of consumption)
+    def get_coverage_rate(self, index_producer=None, index_consumer=None):
 
         total_production = 0
         total_consumption = 0
         for row in self.point_list:
 
-            total_production += row.prod_list[index_producer].initial_production
+            # Get production
+            if index_producer == None:
+                for prod in row.prod_list:
+                    total_production += prod.initial_production
+            else:
+                total_production += row.prod_list[index_producer].initial_production
 
-        for cons in cons_list:
-            for point in cons.point_list:
-                total_consumption += point.cons
+            # Get consumption
+            if index_consumer == None:
+                for cons in row.cons_list:
+                    total_consumption += cons.consumption
+            else:
+                total_consumption += row.cons_list[index_consumer].consumption
 
         # Compute coverage rate
         coverage_rate = int(total_production * 1000 / total_consumption) / 10
