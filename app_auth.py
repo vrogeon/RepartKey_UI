@@ -690,11 +690,11 @@ def projects():
 def create_project():
     form = ProjectForm()
 
-    # Vérifier la limite de projets (3 max)
+    # Vérifier la limite de projets (10 max)
     user_projects_count = current_user.projects.count()
-    if user_projects_count >= 3:
+    if user_projects_count >= 10:
         flash(
-            'Vous avez atteint la limite de 3 projets. Veuillez supprimer un projet existant pour en créer un nouveau.',
+            'Vous avez atteint la limite de 10 projets. Veuillez supprimer un projet existant pour en créer un nouveau.',
             'error')
         return redirect(url_for('projects'))
 
@@ -749,6 +749,31 @@ def delete_project(project_id):
     flash(f'Projet "{project.name}" supprimé avec succès.', 'success')
     return redirect(url_for('projects'))
 
+@app.route('/update-project/<int:project_id>', methods=['POST'])
+@login_required
+def update_project(project_id):
+    project = Project.query.get_or_404(project_id)
+
+    # Vérifier que l'utilisateur est propriétaire du projet
+    if project.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Vous n\'avez pas l\'autorisation de modifier ce projet.'}), 403
+
+    data = request.get_json()
+    field = data.get('field')
+    value = data.get('value')
+
+    if not field or value is None:
+        return jsonify({'success': False, 'message': 'Données manquantes'}), 400
+
+    if field == 'name':
+        project.name = value
+    elif field == 'description':
+        project.description = value
+    else:
+        return jsonify({'success': False, 'message': 'Champ invalide'}), 400
+
+    db.session.commit()
+    return jsonify({'success': True})
 
 @app.route('/project/<int:project_id>')
 @login_required
@@ -777,7 +802,7 @@ def project_dashboard(project_id):
 # Fonctions utilitaires adaptées pour les projets
 def get_cons_list(project_id):
     """Retourne la liste des objets Consumer pour un projet spécifique"""
-    project = Project.query.get(project_id)
+    project = db.session.get(Project,project_id)
     if not project:
         return []
 
@@ -792,7 +817,7 @@ def get_cons_list(project_id):
 
 def get_prod_list(project_id):
     """Retourne la liste des objets Producer pour un projet spécifique"""
-    project = Project.query.get(project_id)
+    project = db.session.get(Project,project_id)
     if not project:
         return []
 
@@ -807,7 +832,7 @@ def get_prod_list(project_id):
 
 def get_producer_count(project_id):
     """Retourne le nombre de producteurs pour un projet spécifique"""
-    project = Project.query.get(project_id)
+    project = db.session.get(Project,project_id)
     if not project:
         return 0
     return project.producer_blocks.count()
@@ -815,7 +840,7 @@ def get_producer_count(project_id):
 
 def update_all_consumers_for_new_producer(project_id):
     """Met à jour tous les consumers d'un projet quand un nouveau producteur est ajouté"""
-    project = Project.query.get(project_id)
+    project = db.session.get(Project,project_id)
     if not project:
         return
 
@@ -833,7 +858,7 @@ def update_all_consumers_for_new_producer(project_id):
 
 def update_all_consumers_for_deleted_producer(project_id, producer_index):
     """Met à jour tous les consumers d'un projet quand un producteur est supprimé"""
-    project = Project.query.get(project_id)
+    project = db.session.get(Project,project_id)
     if not project:
         return
 
@@ -1271,7 +1296,7 @@ def upload_consumer_file(project_id):
                 return jsonify({'success': False, 'message': 'Le fichier n\'a pas pu être sauvegardé'})
 
             # Récupérer le ConsumerBlock et son objet
-            consumer_block = ConsumerBlock.query.get(int(consumer_id))
+            consumer_block = db.session.get(ConsumerBlock,int(consumer_id))
             if not consumer_block or consumer_block.project_id != project_id:
                 return jsonify({'success': False, 'message': 'Consommateur non trouvé'})
 
@@ -1330,7 +1355,7 @@ def upload_producer_file(project_id):
                 return jsonify({'success': False, 'message': 'Le fichier n\'a pas pu être sauvegardé'})
 
             # Récupérer le ProducerBlock et son objet
-            producer_block = ProducerBlock.query.get(int(producer_id))
+            producer_block = db.session.get(ProducerBlock,int(producer_id))
             if not producer_block or producer_block.project_id != project_id:
                 return jsonify({'success': False, 'message': 'Producteur non trouvé'})
 

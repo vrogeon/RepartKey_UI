@@ -996,6 +996,53 @@ body {
         background-color: #cccccc;
         cursor: not-allowed;
     }
+
+    /* Styles pour les indicateurs de chargement */
+.loading-spinner {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(8, 145, 178, 0.1);
+    border-radius: 50%;
+    border-top-color: #0891b2;
+    animation: spin 1s ease-in-out infinite;
+}
+
+/* Ajoutez ces styles pour les onglets */
+.tab-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.tab-header {
+    display: flex;
+    border-bottom: 1px solid #ccc;
+}
+
+.tab-header button {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.tab-header button.active {
+    border-bottom: 3px solid #0891b2;
+    font-weight: bold;
+}
+
+.tab-content {
+    display: none;
+    padding: 20px;
+}
+
+.tab-content.active {
+    display: block;
+}
 </style>
 
 <!-- Panneau latéral pour le tableau de répartition -->
@@ -1023,12 +1070,17 @@ body {
             <div class="project-info-block">
                 <div class="project-info-header">
                     <div class="project-info-title">
-                        <span class="project-icon">📁</span>
                         <div class="project-details">
-                            <strong>{{ project.name }}</strong>
-                            {% if project.description %}
-                            <small>{{ project.description }}</small>
-                            {% endif %}
+                            <strong
+                                class="editable_project_name"
+                                contenteditable="true"
+                                onblur="saveProjectDetails('name', this, {{ project_id }})"
+                            >{{ project.name }}</strong>
+                            <small
+                                class="editable_project_desc"
+                                contenteditable="true"
+                                onblur="saveProjectDetails('description', this, {{ project_id }})"
+                            >{{ project.description }}</small>
                         </div>
                     </div>
                     <a href="{{ url_for('projects') }}" class="btn-back-projects">
@@ -3152,6 +3204,18 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+document.addEventListener('DOMContentLoaded', function() {
+    // Gestion de la touche Entrée pour valider le nom et la description
+    document.querySelectorAll('.editable_project_name').forEach(editableElement => {
+        editableElement.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Empêche le saut de ligne
+                this.blur(); // Déclenche la perte de focus, ce qui appelle saveProjectDetails via onblur
+            }
+        });
+    });
+});
+
 // Fonction pour charger les indicateurs détaillés (inspirée de updateIndicators)
 function loadDetailedIndicators() {
     // Utilisez la méthode dédiée de urlManager
@@ -3268,6 +3332,31 @@ function downloadExportFiles() {
         downloadButton.disabled = false;
     }
 });
+
+function saveProjectDetails(field, element, projectId) {
+    const newValue = element.textContent;
+
+    fetch(`/update-project/${projectId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            field: field,
+            value: newValue
+        }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            console.error('Erreur:', data.message);
+            // Optionnel : afficher un message d'erreur à l'utilisateur
+        }
+    })
+    .catch((error) => {
+        console.error('Erreur:', error);
+    });
+}
 
 </script>
 
