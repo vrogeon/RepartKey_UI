@@ -8,6 +8,14 @@
         <label for="prod_name">Nom du producteur</label>
         <input type="text" name="prod_name" id="prod_name" class="form-control" value="{{ producer_block.prod_name }}" required>
     </div>
+
+    <div class="form-group">
+        <label for="prm">PRM (Point Référence Mesure)</label>
+        <input type="text" name="prm" id="prm" class="form-control"
+               value="{{ producer_block.prm or '' }}"
+               placeholder="Numéro de série du compteur">
+    </div>
+
     <button type="submit" class="btn btn-primary">Valider</button>
     <button type="button" class="btn" onclick="goBack()">Annuler</button>
 </form>

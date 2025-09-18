@@ -975,6 +975,27 @@ body {
     margin-top: 2px;
 }
 
+    /* Style pour le bouton de téléchargement */
+    #downloadExportFilesButton {
+        width: 100%;
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        margin-top: 10px;
+    }
+
+    #downloadExportFilesButton:hover {
+        background-color: #5a6268;
+    }
+
+    #downloadExportFilesButton:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+    }
 </style>
 
 <!-- Panneau latéral pour le tableau de répartition -->
@@ -1154,6 +1175,16 @@ body {
                             <input type="hidden" name="cles" id="cles_hidden" value="default">
                             <button type="submit" class="btn btn-primary" style="width: 100%;">Calculer les clés de répartitions</button>
                         </form>
+
+                        <!-- Bouton de téléchargement des fichiers exportés -->
+                        <button
+                            id="downloadExportFilesButton"
+                            class="btn btn-secondary"
+                            style="width: 100%; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;"
+                            onclick="downloadExportFiles()"
+                        >
+                            Télécharger les fichiers
+                        </button>
                     </div>
 
                     <!-- Section Gestion des priorités -->
@@ -1345,6 +1376,10 @@ class URLManager {
 
     getUpdateProducerUrl(id) {
         return this.buildUrl(`/update_producer/${encodeURIComponent(id)}`);
+    }
+
+    getExportFilesUrl(id) {
+        return this.buildUrl('/export_files');
     }
 
 }
@@ -2099,7 +2134,6 @@ function loadChart() {
                 console.log('Aucune donnée de graphique reçue');
                 const emptyLayout = {
                     title: 'Aucune donnée disponible',
-                    xaxis: {title: 'Date'},
                     yaxis: {title: 'Autoconsommation (kWh)'},
                     annotations: [{
                         x: 0.5, y: 0.5,
@@ -2117,7 +2151,15 @@ function loadChart() {
                     auto_production_rate_global: '-',
                     coverage_rate: '-'
                 });
+
+                // Activer le bouton de téléchargement
+               document.getElementById('downloadExportFilesButton').disabled = false;
+
                 return;
+            }
+            else {
+                // Désactiver le bouton de téléchargement
+                //document.getElementById('downloadExportFilesButton').disabled = true;
             }
 
             const config = {
@@ -3174,6 +3216,58 @@ function loadDetailedIndicators() {
         });
 }
 
+
+// Fonction pour télécharger les fichiers exportés
+function downloadExportFiles() {
+    const downloadButton = document.getElementById('downloadExportFilesButton');
+    downloadButton.disabled = true;
+    downloadButton.textContent = 'Préparation...';
+
+    // Utiliser urlManager pour construire l'URL
+    const url = urlManager.getExportFilesUrl();
+
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Erreur serveur: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.files && data.files.length > 0) {
+                // Créer un lien de téléchargement pour chaque fichier
+                data.files.forEach(file => {
+                    const link = document.createElement('a');
+                    link.href = file.url;
+                    link.download = file.name;
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                });
+
+                showMessage('Téléchargement des fichiers terminé.', 'success');
+            } else {
+                showMessage(data.message || 'Aucun fichier à télécharger.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            showMessage('Erreur lors du téléchargement des fichiers.', 'error');
+        })
+        .finally(() => {
+            downloadButton.disabled = false;
+            downloadButton.textContent = 'Télécharger les fichiers';
+        });
+}
+
+    document.addEventListener('DOMContentLoaded', function() {
+    // Désactiver le bouton de téléchargement par défaut
+    const downloadButton = document.getElementById('downloadExportFilesButton');
+    if (downloadButton) {
+        downloadButton.disabled = false;
+    }
+});
 
 </script>
 

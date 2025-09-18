@@ -150,6 +150,7 @@ class ProducerBlock(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     prod_name = db.Column(db.String(100), nullable=False)
+    prm = db.Column(db.String(50), nullable=True)  # Nouveau champ PRM
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
     date_created = db.Column(db.DateTime, default=datetime.utcnow)
 

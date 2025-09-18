@@ -1,6 +1,6 @@
 # app_auth.py - Version avec authentification, gestion de projets et mode démo
 
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -113,7 +113,7 @@ DEMO_PROJECT_ID = -1  # ID spécial pour le projet démo
 # Fonction de chargement de l'utilisateur pour Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 
 # Créer les tables de la base de données avec migration
@@ -147,6 +147,13 @@ with app.app_context():
         if 'tarif_hp' not in consumer_columns:
             db.engine.execute('ALTER TABLE consumer_blocks ADD COLUMN tarif_hp FLOAT DEFAULT 0.0')
             print("Colonne 'tarif_hp' ajoutée à consumer_blocks")
+
+        producer_columns = [col['name'] for col in inspector.get_columns('producer_blocks')]
+
+        # Ajouter les colonnes manquantes
+        if 'prm' not in producer_columns:
+            db.engine.execute('ALTER TABLE producer_blocks ADD COLUMN prm VARCHAR(50)')
+            print("Colonne 'prm' ajoutée à producer_blocks")
 
     except Exception as e:
         print(f"Migration des colonnes: {e}")
@@ -856,6 +863,7 @@ def add_consumer_block(project_id):
         return jsonify({'success': False, 'message': 'Non autorisé'})
 
     cons_name = request.form['cons_name']
+    # cons_prm = request.form['cons_prm']
 
     new_consumer_block = ConsumerBlock(cons_name=cons_name, project_id=project_id)
 
@@ -900,6 +908,7 @@ def add_producer_block(project_id):
         return jsonify({'success': False, 'message': 'Non autorisé'})
 
     prod_name = request.form['prod_name']
+    # prod_prm = request.form['prod_prm']
 
     new_producer_block = ProducerBlock(prod_name=prod_name, project_id=project_id)
 
@@ -907,7 +916,7 @@ def add_producer_block(project_id):
         db.session.add(new_producer_block)
         db.session.commit()
 
-        producer = Producer.Producer(prod_name, 1234567901000)
+        producer = Producer.Producer(prod_name)
 
         # Créer l'objet ProducerObject
         producer_obj = ProducerObject(
@@ -1443,6 +1452,7 @@ def update_producer(project_id, producer_id):
 
     if request.method == 'POST':
         producer_block.prod_name = request.form['prod_name']
+        producer_block.prm = request.form.get('prm', '').strip() or None
 
         try:
             db.session.commit()
@@ -1508,6 +1518,71 @@ def get_detailed_indicators(project_id):
             'success': False,
             'message': f'Erreur serveur : {str(e)}'
         }), 500
+
+@app.route('/project/<int:project_id>/export_files', methods=['GET'])
+@login_required
+def list_export_files(project_id):
+    project = Project.query.get_or_404(project_id)
+    if project.user_id != current_user.id:
+        return jsonify({'error': 'Non autorisé'}), 403
+
+    try:
+        # Chemin vers le dossier d'export du projet
+        project_export_folder = os.path.join(EXPORT_FOLDER, f'project_{project_id}')
+
+        if not os.path.exists(project_export_folder):
+            return jsonify({
+                'success': False,
+                'message': 'Aucun fichier exporté disponible pour ce projet.'
+            })
+
+        # Lister les fichiers dans le dossier d'export
+        files = []
+        for filename in os.listdir(project_export_folder):
+            filepath = os.path.join(project_export_folder, filename)
+            if os.path.isfile(filepath):
+                files.append({
+                    'name': filename,
+                    'url': f'/project/{project_id}/download_export_file/{filename}'
+                })
+
+        if not files:
+            return jsonify({
+                'success': False,
+                'message': 'Aucun fichier exporté disponible pour ce projet.'
+            })
+
+        return jsonify({
+            'success': True,
+            'files': files
+        })
+
+    except Exception as e:
+        print(f"Erreur lors de la liste des fichiers exportés: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Erreur serveur: {str(e)}'
+        }), 500
+
+@app.route('/project/<int:project_id>/download_export_file/<filename>', methods=['GET'])
+@login_required
+def download_export_file(project_id, filename):
+    project = Project.query.get_or_404(project_id)
+    if project.user_id != current_user.id:
+        return jsonify({'error': 'Non autorisé'}), 403
+
+    try:
+        # Chemin vers le dossier d'export du projet
+        project_export_folder = os.path.join(EXPORT_FOLDER, f'project_{project_id}')
+
+        if not os.path.exists(os.path.join(project_export_folder, filename)):
+            return jsonify({'error': 'Fichier non trouvé'}), 404
+
+        return send_from_directory(project_export_folder, filename, as_attachment=True)
+
+    except Exception as e:
+        print(f"Erreur lors du téléchargement du fichier: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=False)
