@@ -941,7 +941,7 @@ def add_producer_block(project_id):
         db.session.add(new_producer_block)
         db.session.commit()
 
-        producer = Producer.Producer(prod_name)
+        producer = Producer.Producer(prod_name, prod_name)
 
         # Créer l'objet ProducerObject
         producer_obj = ProducerObject(
