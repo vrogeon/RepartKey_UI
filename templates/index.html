@@ -1430,8 +1430,12 @@ class URLManager {
         return this.buildUrl(`/update_producer/${encodeURIComponent(id)}`);
     }
 
-    getExportFilesUrl(id) {
+    getExportFilesUrl() {
         return this.buildUrl('/export_files');
+    }
+
+    getDownloadFilesUrl() {
+        return this.buildUrl('/download_export_file');
     }
 
 }
@@ -3289,21 +3293,26 @@ function downloadExportFiles() {
 
     // Utiliser urlManager pour construire l'URL
     const url = urlManager.getExportFilesUrl();
+    //console.log('URL de téléchargement :', url);
 
     fetch(url)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`Erreur serveur: ${response.status}`);
             }
+            //console.log('Réponse brute :', response);
             return response.json();
         })
         .then(data => {
+            //console.log('Données reçues :', data);
             if (data.success && data.files && data.files.length > 0) {
                 // Créer un lien de téléchargement pour chaque fichier
                 data.files.forEach(file => {
                     const link = document.createElement('a');
-                    link.href = file.url;
+                    link.href = urlManager.getDownloadFilesUrl() + '/' + file.name;
                     link.download = file.name;
+                    //console.log('link.href :', link.href);
+                    //console.log('link.download :', link.download);
                     link.style.display = 'none';
                     document.body.appendChild(link);
                     link.click();
