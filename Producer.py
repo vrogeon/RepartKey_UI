@@ -27,6 +27,7 @@ class Producer:
         with open(file, newline='') as csvfile:
             next(csvfile) # Skip first line of the file which contains title
             prod_file = csv.reader(csvfile,delimiter=';')
+            self.point_list = []
             for row in prod_file:
                 self.point_list.append(Producer.Point(row[0], float(row[1].replace(',','.'))))
                 # print(row)
