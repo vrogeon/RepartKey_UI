@@ -1438,6 +1438,13 @@ class URLManager {
         return this.buildUrl('/download_export_file');
     }
 
+    getSaveRepartitionKeyTypeUrl() {
+        return this.buildUrl('/save_repartition_key_type');
+    }
+
+    getRepartitionKeyTypeUrl() {
+        return this.buildUrl('/get_repartition_key_type');
+    }
 }
 
 // Classe pour le mode démo
@@ -2944,6 +2951,8 @@ function handleKeyTypeChange() {
             prioritySection.style.display = 'none';
         }
     }
+
+    document.getElementById('cle').addEventListener('change', saveRepartitionKeyType);
 }
 
 // Fonction pour rafraîchir le tableau de priorités
@@ -3366,6 +3375,50 @@ function saveProjectDetails(field, element, projectId) {
         console.error('Erreur:', error);
     });
 }
+
+function saveRepartitionKeyType() {
+    const keyType = document.getElementById('cle').value;
+
+    fetch(urlManager.getSaveRepartitionKeyTypeUrl(), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ key_type: keyType }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Type de clé de répartition sauvegardé avec succès');
+        } else {
+            console.error('Erreur:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Récupérer la valeur de repartition_key_type depuis le backend
+    fetch(urlManager.getRepartitionKeyTypeUrl())
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.repartition_key_type) {
+                // Appliquer la valeur au champ de sélection
+                const keyTypeSelect = document.getElementById('cle');
+                if (keyTypeSelect) {
+                    keyTypeSelect.value = data.repartition_key_type;
+                    // Déclencher l'événement change pour mettre à jour l'interface
+                    const event = new Event('change');
+                    keyTypeSelect.dispatchEvent(event);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+        });
+});
 
 </script>
 

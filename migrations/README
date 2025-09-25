@@ -1,0 +1,28 @@
+Single-database configuration for Flask.
+
+Pour appiquer la migration, ouvrir une commande prompt dans le dossier et éxecuter ".venv\Scripts\activate"
+
+Ensuite:
+
+### 1. Définir la variable d'environnement pour l'application Flask
+``` bash
+# Sur Windows
+set FLASK_APP=migrations.py
+
+# Sur Linux/Mac
+export FLASK_APP=migrations.py
+```
+### 2. Initialiser la base de données pour les migrations (si ce n'est pas déjà fait)
+``` bash
+flask db init
+```
+### 3. Créer la migration pour l'ajout du champ repartition_key_type
+``` bash
+flask db migrate -m "Ajout du champ repartition_key_type"
+```
+Cette commande générera un script de migration dans le dossier `migrations/versions/` avec un nom comme `xxxxxxxxxxxx_ajout_du_champ_repartition_key_type.py`.
+### 4. Appliquer la migration
+``` bash
+flask db upgrade
+```
+

@@ -1609,5 +1609,26 @@ def download_export_file(project_id, filename):
         print(f"Erreur lors du téléchargement du fichier: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/project/<int:project_id>/save_repartition_key_type', methods=['POST'])
+@login_required
+def save_repartition_key_type(project_id):
+    project = Project.query.get_or_404(project_id)
+    data = request.get_json()
+
+    if 'key_type' not in data:
+        return jsonify({'success': False, 'message': 'Type de clé de répartition manquant'}), 400
+
+    key_type = data['key_type']
+    project.repartition_key_type = key_type
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': 'Type de clé de répartition sauvegardé avec succès'})
+
+@app.route('/project/<int:project_id>/get_repartition_key_type', methods=['GET'])
+@login_required
+def get_repartition_key_type(project_id):
+    project = Project.query.get_or_404(project_id)
+    return jsonify({'success': True, 'repartition_key_type': project.repartition_key_type})
+
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=False)
