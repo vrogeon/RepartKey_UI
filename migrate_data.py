@@ -1,23 +1,33 @@
 from app_auth import app, db
-from models import Project  # Importez le modèle concerné
+from models import Project, PrioritySettings
 
 
-def migrate_repartition_key_type():
+def init_default_priority_settings():
     """
-    Met à jour les données existantes avec une valeur par défaut pour repartition_key_type
+    Initialise les paramètres de priorité par défaut pour tous les projets existants
     """
     try:
-        # Valeur par défaut pour les enregistrements existants
-        default_key_type = "default"  # Adaptez selon votre logique métier
+        projects = Project.query.all()
+        producers = ["EDF", "ENGIE", "TOTAL"]  # Ajustez selon vos producteurs
+        priorities = [1, 2, 3]  # Ajustez selon vos priorités
 
-        # Mettre à jour tous les enregistrements sans valeur pour repartition_key_type
-        repartitions = Project.query.filter(Project.repartition_key_type.is_(None)).all()
-
-        for repartition in repartitions:
-            repartition.repartition_key_type = default_key_type
+        for project in projects:
+            # Vérifier si le projet a déjà des paramètres
+            existing_settings = PrioritySettings.query.filter_by(project_id=project.id).first()
+            if not existing_settings:
+                # Créer des paramètres par défaut (tous activés)
+                for producer in producers:
+                    for priority in priorities:
+                        setting = PrioritySettings(
+                            project_id=project.id,
+                            producer=producer,
+                            priority=priority,
+                            enabled=True
+                        )
+                        db.session.add(setting)
 
         db.session.commit()
-        print(f"Migration réussie: {len(repartitions)} enregistrements mis à jour.")
+        print(f"Migration réussie: paramètres de priorité initialisés pour {len(projects)} projets.")
     except Exception as e:
         db.session.rollback()
         print(f"Erreur lors de la migration: {str(e)}")
@@ -26,4 +36,4 @@ def migrate_repartition_key_type():
 if __name__ == "__main__":
     # Création du contexte d'application Flask
     with app.app_context():
-        migrate_repartition_key_type()
+        init_default_priority_settings()

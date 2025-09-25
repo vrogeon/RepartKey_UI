@@ -88,9 +88,9 @@ class CaptchaHelper:
             num1 = random.randint(2, 9)
             num2 = random.randint(2, 9)
         elif op_symbol == '-':
-            # Pour la soustraction, s'assurer que le résultat est positif
+            # Pour la soustraction, s'assurer que le résultat est strictement positif
             num1 = random.randint(10, 20)
-            num2 = random.randint(1, num1)
+            num2 = random.randint(1, num1-1)
         else:
             # Pour l'addition
             num1 = random.randint(1, 20)

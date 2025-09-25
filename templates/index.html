@@ -1445,6 +1445,14 @@ class URLManager {
     getRepartitionKeyTypeUrl() {
         return this.buildUrl('/get_repartition_key_type');
     }
+
+    getSavePrioritySettingsUrl() {
+        return this.buildUrl('/save_priority_settings');
+    }
+
+    getPrioritySettingsUrl() {
+        return this.buildUrl('/get_priority_settings');
+    }
 }
 
 // Classe pour le mode démo
@@ -2720,35 +2728,42 @@ function generatePriorityTable() {
 
     tableHTML += '</tbody></table>';
     container.innerHTML = tableHTML;
+
+    // Sauvegarder les paramètres APRÈS que le HTML soit inséré dans le DOM
+    // Utiliser setTimeout pour s'assurer que le DOM est complètement mis à jour
+    // setTimeout(() => {
+    //     savePrioritySettings();
+    // }, 100);
 }
 
 
 // Fonction pour obtenir le mode d'une priorité pour un producteur
 function getPriorityMode(priority, producerIndex) {
     const key = `${priority}_${producerIndex}`;
-    // Par défaut, utiliser le mode ratio
+    // Par défaut, utiliser le mode auto (qui correspond à enabled: false dans la DB)
     if (!(key in priorityModes)) {
-        priorityModes[key] = 'ratio';
+        priorityModes[key] = 'auto';
     }
     return priorityModes[key];
 }
 
 // Fonction pour basculer le mode d'une priorité
-function togglePriorityMode(priority, producerIndex, useRatio) {
+function togglePriorityMode(priority, producerIndex, useManual) {
     const key = `${priority}_${producerIndex}`;
-    priorityModes[key] = useRatio ? 'manual' : 'auto';
+    priorityModes[key] = useManual ? 'default' : 'ratio';
+
     const toggleId = `priority_${priority}_prod_${producerIndex}`;
     const toggleElement = document.getElementById(toggleId);
     if (toggleElement) {
         const labelElement = toggleElement.closest('.priority-toggle-container').querySelector('.priority-toggle-label');
         if (labelElement) {
-            labelElement.textContent = useRatio ? 'Manuel' : 'Automatique';
-            labelElement.className = `priority-toggle-label ${useRatio ? 'manual' : 'auto'}`;
+            labelElement.textContent = useManual ? 'Manuel' : 'Automatique';
+            labelElement.className = `priority-toggle-label ${useManual ? 'default' : 'ratio'}`;
         }
     }
 
     // Si on passe en mode Manuel
-    if (useRatio) {
+    if (useManual) {
         document.querySelectorAll(`.ratio-field[data-producer-index="${producerIndex}"]`).forEach(field => {
             const currentPriority = parseInt(field.closest('tr').querySelector('.priority-field').textContent.trim());
             if (currentPriority === priority) {
@@ -2793,7 +2808,10 @@ function togglePriorityMode(priority, producerIndex, useRatio) {
         recalculateRatiosForPriority(priority, producerIndex);
     }
 
-    updateRatioFieldsForPriority(priority, producerIndex, useRatio);
+    updateRatioFieldsForPriority(priority, producerIndex, useManual);
+
+    // Sauvegarder les changements
+    savePrioritySettings();
 }
 
 // Nouvelle fonction pour recalculer les ratios en mode Automatique
@@ -2923,7 +2941,7 @@ function handleKeyTypeChange() {
             prioritySection.style.display = 'block';
 
             setTimeout(() => {
-                generatePriorityTable();
+                //generatePriorityTable();
 
                 // Appliquer les modes de priorité existants
                 Object.keys(priorityModes).forEach(key => {
@@ -3004,7 +3022,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const prioritySection = document.getElementById('priorityManagementSection');
             if (prioritySection) {
                 prioritySection.style.display = 'block';
-                generatePriorityTable();
+                //generatePriorityTable();
             }
         }
 
@@ -3419,6 +3437,105 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Erreur:', error);
         });
 });
+
+    // Fonction pour sauvegarder les paramètres de priorité
+function savePrioritySettings() {
+    const prioritySettings = [];
+
+    // Sélectionner tous les boutons à bascule selon le format de l'ID utilisé dans votre HTML
+    document.querySelectorAll('input[id^="priority_"]').forEach(toggle => {
+        // Format des ID: priority_[priorityNumber]_prod_[producerIndex]
+        const idParts = toggle.id.split('_');
+        if (idParts.length === 4 && idParts[0] === 'priority' && idParts[2] === 'prod') {
+            const priority = parseInt(idParts[1]);
+            const producerIndex = parseInt(idParts[3]);
+
+            prioritySettings.push({
+                producer: producerIndex,
+                priority: priority,
+                enabled: toggle.checked  // true si le mode est "Manuel", false si "Défaut"
+            });
+        }
+    });
+
+    // Ne rien envoyer si aucun paramètre trouvé
+    if (prioritySettings.length === 0) {
+        console.log('Aucun paramètre de priorité à sauvegarder');
+        return;
+    }
+
+    // Envoyer les données au serveur
+    fetch(urlManager.getSavePrioritySettingsUrl(), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(prioritySettings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Corriger la vérification du statut de réponse
+        if (data.status === 'success') {
+            console.log('Paramètres de priorité enregistrés avec succès');
+            // Utiliser showMessage au lieu de showNotification
+            showMessage('Paramètres de priorité enregistrés avec succès', 'success');
+        } else {
+            // Utiliser data.message au lieu de data.error
+            console.error('Erreur lors de l\'enregistrement:', data.message);
+            showMessage('Erreur lors de l\'enregistrement des paramètres: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Erreur de requête:', error);
+        showMessage('Erreur de communication avec le serveur', 'error');
+    });
+}
+
+    // Fonction pour charger les paramètres de priorité
+function loadPrioritySettings() {
+    fetch(urlManager.getPrioritySettingsUrl())
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Stocker les paramètres dans priorityModes avant de générer le tableau
+            priorityModes = {};
+
+            // Appliquer les paramètres chargés au système de gestion des priorités
+            data.data.forEach(setting => {
+                const key = `${setting.priority}_${setting.producer}`;
+                // Convertir enabled (boolean) vers le mode approprié
+                priorityModes[key] = setting.enabled ? 'ratio' : 'default';
+            });
+
+            // Générer le tableau avec les paramètres chargés
+            if (document.getElementById('cle').value === 'dynamic') {
+                generatePriorityTable();
+            }
+
+            console.log('Paramètres de priorité chargés avec succès:', priorityModes);
+        } else {
+            console.error('Erreur lors du chargement:', data.message);
+            showMessage('Erreur lors du chargement des paramètres de priorité: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Erreur de requête:', error);
+        showMessage('Erreur lors du chargement des paramètres de priorité', 'error');
+    });
+}
+
+    // Ajouter l'appel à loadPrioritySettings lors du chargement de la page
+    document.addEventListener('DOMContentLoaded', function() {
+        // Autres initialisations...
+        loadPrioritySettings();
+
+        // Si vous avez un bouton de sauvegarde spécifique, vous pouvez l'associer ainsi:
+<!--        const saveButton = document.getElementById('save-priorities');-->
+<!--        if (saveButton) {-->
+<!--            saveButton.addEventListener('click', savePrioritySettings);-->
+<!--        }-->
+    });
+
 
 </script>
 

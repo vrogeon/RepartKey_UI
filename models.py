@@ -52,6 +52,21 @@ class Project(db.Model):
     def __repr__(self):
         return f'<Project {self.name}>'
 
+class PrioritySettings(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    producer = db.Column(db.String(100), nullable=False)
+    priority = db.Column(db.Integer, nullable=False)
+    enabled = db.Column(db.Boolean, default=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('project_id', 'producer', 'priority', name='uix_priority_settings'),
+    )
+
+    projects = db.relationship('Project', backref=db.backref('priority_settings', lazy=True))
+
+    def __repr__(self):
+        return f'<PrioritySettings {self.producer}-P{self.priority}:{self.enabled}>'
 
 class TextBlock(db.Model):
     __tablename__ = 'text_blocks'

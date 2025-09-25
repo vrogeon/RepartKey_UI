@@ -11,7 +11,7 @@ import pickle
 import random
 
 # Import des modèles et formulaires
-from models import db, User, Project, TextBlock, ConsumerBlock, ProducerBlock, ConsumerObject, ProducerObject
+from models import db, User, Project, TextBlock, ConsumerBlock, ProducerBlock, ConsumerObject, ProducerObject, PrioritySettings
 from forms import LoginForm, RegistrationForm, ProjectForm, CaptchaHelper
 
 # Import des modules métier existants
@@ -1629,6 +1629,66 @@ def save_repartition_key_type(project_id):
 def get_repartition_key_type(project_id):
     project = Project.query.get_or_404(project_id)
     return jsonify({'success': True, 'repartition_key_type': project.repartition_key_type})
+
+@app.route('/project/<int:project_id>/save_priority_settings', methods=['POST'])
+@login_required
+def save_priority_settings(project_id):
+    try:
+        # Vérifier que le projet existe et appartient à l'utilisateur
+        project = Project.query.get_or_404(project_id)
+
+        data = request.get_json()
+        if not data:
+            return jsonify({"status": "error", "message": "Aucune donnée reçue"}), 400
+
+        # Supprimer les anciennes configurations pour ce projet
+        PrioritySettings.query.filter_by(project_id=project_id).delete()
+
+        # Insérer les nouvelles configurations
+        for item in data:
+            producer = item.get('producer')
+            priority = item.get('priority')
+            enabled = item.get('enabled')
+
+            if producer is not None and priority is not None and enabled is not None:
+                priority_setting = PrioritySettings(
+                    project_id=project_id,
+                    producer=producer,
+                    priority=priority,
+                    enabled=enabled
+                )
+                db.session.add(priority_setting)
+
+        db.session.commit()
+        return jsonify({"status": "success", "message": "Paramètres de priorité enregistrés"})
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur lors de la sauvegarde des priorités: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/project/<int:project_id>/get_priority_settings', methods=['GET'])
+@login_required
+def get_priority_settings(project_id):
+    try:
+        # Vérifier que le projet existe et appartient à l'utilisateur
+        project = Project.query.get_or_404(project_id)
+
+        settings = PrioritySettings.query.filter_by(project_id=project_id).all()
+        result = [
+            {
+                'producer': setting.producer,
+                'priority': setting.priority,
+                'enabled': setting.enabled
+            }
+            for setting in settings
+        ]
+        return jsonify({"status": "success", "data": result})
+
+    except Exception as e:
+        app.logger.error(f"Erreur lors de la récupération des priorités: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=False)
