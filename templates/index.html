@@ -3323,11 +3323,8 @@ function downloadExportFiles() {
         .then(response => response.json())
         .then(data => {
             if (data.success && data.files && data.files.length > 0) {
-                // Option 1: Télécharger tous les fichiers en un ZIP
+                // Télécharger tous les fichiers en un ZIP
                 downloadAllAsZip();
-                
-                // Option 2: Télécharger chaque fichier individuellement (commenté)
-                // downloadFilesIndividually(data.files);
             } else {
                 showMessage(data.message || 'Aucun fichier à télécharger.', 'error');
             }
@@ -3369,52 +3366,6 @@ function downloadAllAsZip() {
     
     showMessage('Téléchargement du ZIP initié', 'success');
 }
-
-// Télécharger les fichiers individuellement avec POST
-function downloadFilesIndividually(files) {
-    files.forEach((file, index) => {
-        // Délai entre chaque téléchargement pour éviter les problèmes
-        setTimeout(() => {
-            downloadSingleFilePost(file.name);
-        }, index * 500);
-    });
-    
-    showMessage(`Téléchargement de ${files.length} fichier(s) initié`, 'success');
-}
-
-// Télécharger un fichier individuel avec POST
-function downloadSingleFilePost(filename) {
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = `${urlManager.baseUrl}/download_file`;
-    form.style.display = 'none';
-    
-    // Ajouter le nom du fichier
-    const filenameInput = document.createElement('input');
-    filenameInput.type = 'hidden';
-    filenameInput.name = 'filename';
-    filenameInput.value = filename;
-    form.appendChild(filenameInput);
-    
-    // Ajouter le token CSRF si présent
-    const csrfToken = document.querySelector('meta[name="csrf-token"]');
-    if (csrfToken) {
-        const csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = 'csrf_token';
-        csrfInput.value = csrfToken.content;
-        form.appendChild(csrfInput);
-    }
-    
-    document.body.appendChild(form);
-    form.submit();
-    
-    // Nettoyer après un délai
-    setTimeout(() => {
-        document.body.removeChild(form);
-    }, 1000);
-}
-
 
     document.addEventListener('DOMContentLoaded', function() {
     // Désactiver le bouton de téléchargement par défaut

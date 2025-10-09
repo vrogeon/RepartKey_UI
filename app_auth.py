@@ -1648,44 +1648,6 @@ def download_export_file(project_id, filename):
         print(f"Erreur lors du téléchargement du fichier: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-# Route de téléchargement en POST (plus fiable pour cPanel)
-@app.route('/project/<int:project_id>/download_file', methods=['POST'])
-@login_required
-def download_file_post(project_id):
-    """Route POST pour télécharger un fichier - plus fiable sur cPanel"""
-    try:
-        project = Project.query.get_or_404(project_id)
-        if project.user_id != current_user.id:
-            return jsonify({'error': 'Non autorisé'}), 403
-        
-        # Récupérer le nom du fichier depuis le POST
-        filename = request.form.get('filename')
-        if not filename:
-            return jsonify({'error': 'Nom de fichier manquant'}), 400
-        
-        safe_filename = secure_filename(filename)
-        project_export_folder = os.path.join(EXPORT_FOLDER, f'project_{project_id}')
-        file_path = os.path.join(project_export_folder, safe_filename)
-        
-        if not os.path.exists(file_path):
-            return jsonify({'error': 'Fichier non trouvé'}), 404
-        
-        # Lire le fichier
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        # Retourner avec les bons headers
-        response = make_response(content)
-        response.headers['Content-Type'] = 'text/csv; charset=utf-8'
-        response.headers['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        
-        return response
-        
-    except Exception as e:
-        print(f"Erreur téléchargement POST: {e}")
-        return jsonify({'error': str(e)}), 500
-
 # Route pour télécharger tous les fichiers en un zip
 @app.route('/project/<int:project_id>/download_all_exports', methods=['POST'])
 @login_required
