@@ -45,7 +45,6 @@ class Project(db.Model):
     is_active = db.Column(db.Boolean, default=True)
 
     # Relations
-    text_blocks = db.relationship('TextBlock', backref='project', lazy='dynamic', cascade='all, delete-orphan')
     consumer_blocks = db.relationship('ConsumerBlock', backref='project', lazy='dynamic', cascade='all, delete-orphan')
     producer_blocks = db.relationship('ProducerBlock', backref='project', lazy='dynamic', cascade='all, delete-orphan')
 
@@ -67,18 +66,6 @@ class PrioritySettings(db.Model):
 
     def __repr__(self):
         return f'<PrioritySettings {self.producer}-P{self.priority}:{self.enabled}>'
-
-class TextBlock(db.Model):
-    __tablename__ = 'text_blocks'
-
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100), nullable=False)
-    content = db.Column(db.Text, nullable=False)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
-    date_created = db.Column(db.DateTime, default=datetime.utcnow)
-
-    def __repr__(self):
-        return f'<TextBlock {self.title}>'
 
 
 class ConsumerBlock(db.Model):

@@ -1,6 +1,6 @@
 # app_auth.py - Version avec authentification, gestion de projets et mode démo
 
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory, send_file
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -11,7 +11,7 @@ import pickle
 import random
 
 # Import des modèles et formulaires
-from models import db, User, Project, TextBlock, ConsumerBlock, ProducerBlock, ConsumerObject, ProducerObject, PrioritySettings
+from models import db, User, Project, ConsumerBlock, ProducerBlock, ConsumerObject, ProducerObject, PrioritySettings
 from forms import LoginForm, RegistrationForm, ProjectForm, CaptchaHelper
 
 # Import des modules métier existants
@@ -283,7 +283,6 @@ def demo_mode():
                                                  'name': 'Projet Démonstration',
                                                  'description': 'Testez toutes les fonctionnalités'
                                              })(),
-                                             text_blocks=[],
                                              consumer_blocks=[],
                                              producer_blocks=[],
                                              project_id=DEMO_PROJECT_ID,
@@ -786,14 +785,12 @@ def project_dashboard(project_id):
         return redirect(url_for('projects'))
 
     # Récupérer les données du projet
-    text_blocks = project.text_blocks.order_by(TextBlock.date_created.desc()).all()
     consumer_blocks = project.consumer_blocks.order_by(ConsumerBlock.id).all()
     producer_blocks = project.producer_blocks.order_by(ProducerBlock.id).all()
 
     # Passer le project_id au template pour l'utiliser dans les requêtes AJAX
     return render_template('index.html',
                            project=project,
-                           text_blocks=text_blocks,
                            consumer_blocks=consumer_blocks,
                            producer_blocks=producer_blocks,
                            project_id=project_id)
@@ -1150,7 +1147,7 @@ def chart_data(project_id):
         return jsonify({'error': 'Non autorisé'}), 403
 
     # Resolution value (mois, jour, heure)
-    res = "heure"
+    res = "jour"
     # Trace type (bar, scatter)
     trace_type = "bar"
 
@@ -1630,6 +1627,7 @@ def list_export_files(project_id):
             'message': f'Erreur serveur: {str(e)}'
         }), 500
 
+# Route de téléchargement avec gestion manuelle de session
 @app.route('/project/<int:project_id>/download_export_file/<filename>', methods=['GET'])
 @login_required
 def download_export_file(project_id, filename):
@@ -1649,6 +1647,86 @@ def download_export_file(project_id, filename):
     except Exception as e:
         print(f"Erreur lors du téléchargement du fichier: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+# Route de téléchargement en POST (plus fiable pour cPanel)
+@app.route('/project/<int:project_id>/download_file', methods=['POST'])
+@login_required
+def download_file_post(project_id):
+    """Route POST pour télécharger un fichier - plus fiable sur cPanel"""
+    try:
+        project = Project.query.get_or_404(project_id)
+        if project.user_id != current_user.id:
+            return jsonify({'error': 'Non autorisé'}), 403
+        
+        # Récupérer le nom du fichier depuis le POST
+        filename = request.form.get('filename')
+        if not filename:
+            return jsonify({'error': 'Nom de fichier manquant'}), 400
+        
+        safe_filename = secure_filename(filename)
+        project_export_folder = os.path.join(EXPORT_FOLDER, f'project_{project_id}')
+        file_path = os.path.join(project_export_folder, safe_filename)
+        
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'Fichier non trouvé'}), 404
+        
+        # Lire le fichier
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Retourner avec les bons headers
+        response = make_response(content)
+        response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+        response.headers['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        
+        return response
+        
+    except Exception as e:
+        print(f"Erreur téléchargement POST: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# Route pour télécharger tous les fichiers en un zip
+@app.route('/project/<int:project_id>/download_all_exports', methods=['POST'])
+@login_required
+def download_all_exports(project_id):
+    """Télécharge tous les fichiers d'export en un seul ZIP"""
+    try:
+        project = Project.query.get_or_404(project_id)
+        if project.user_id != current_user.id:
+            return jsonify({'error': 'Non autorisé'}), 403
+        
+        project_export_folder = os.path.join(EXPORT_FOLDER, f'project_{project_id}')
+        
+        if not os.path.exists(project_export_folder):
+            return jsonify({'error': 'Aucun fichier à télécharger'}), 404
+        
+        # Créer un fichier ZIP en mémoire
+        import io
+        import zipfile
+        
+        memory_file = io.BytesIO()
+        
+        with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for filename in os.listdir(project_export_folder):
+                file_path = os.path.join(project_export_folder, filename)
+                if os.path.isfile(file_path):
+                    zipf.write(file_path, filename)
+        
+        memory_file.seek(0)
+        
+        # Retourner le ZIP
+        return send_file(
+            memory_file,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=f'export_project_{project_id}.zip'
+        )
+        
+    except Exception as e:
+        print(f"Erreur création ZIP: {e}")
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/project/<int:project_id>/save_repartition_key_type', methods=['POST'])
 @login_required
