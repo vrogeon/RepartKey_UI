@@ -7,10 +7,10 @@ Ensuite:
 ### 1. Définir la variable d'environnement pour l'application Flask
 ``` bash
 # Sur Windows
-set FLASK_APP=migrations.py
+set FLASK_APP=migration.py
 
 # Sur Linux/Mac
-export FLASK_APP=migrations.py
+export FLASK_APP=migration.py
 ```
 ### 2. Initialiser la base de données pour les migrations (si ce n'est pas déjà fait)
 ``` bash

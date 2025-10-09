@@ -613,7 +613,7 @@ def demo_chart_data():
                     'layout': {
                         'title': 'Autoconsommation (Mode Démo)',
                         'xaxis': {'title': 'Date'},
-                        'yaxis': {'title': 'Autoconsommation (kWh)'},
+                        'yaxis': {'title': 'Autoconsommation (Wh)'},
                         'legend': {
                             'orientation': 'h',
                             'x': 0.5,
@@ -634,7 +634,7 @@ def demo_chart_data():
             'layout': {
                 'title': 'Aucune donnée disponible - Veuillez calculer les clés de répartition',
                 'xaxis': {'title': 'Date'},
-                'yaxis': {'title': 'Autoconsommation (kWh)'},
+                'yaxis': {'title': 'Autoconsommation (Wh)'},
                 'annotations': [{
                     'x': 0.5, 'y': 0.5,
                     'xref': 'paper', 'yref': 'paper',
@@ -1089,7 +1089,7 @@ def compute_repartition_keys(project_id):
 
         rep = Repartition.Repartition()
         rep.build_rep(prod_list, cons_list, strategy)
-        rep.write_repartition_key(prod_list, cons_list, project_export_folder, True)
+        rep.write_repartition_key(prod_list, cons_list, project_export_folder, False)
 
         stat_file_list = rep.generate_statistics(prod_list, cons_list, project_export_folder)
         rep.generate_monthly_report(prod_list, cons_list, project_export_folder, add_cons_mois=False)
@@ -1149,7 +1149,10 @@ def chart_data(project_id):
     if project.user_id != current_user.id:
         return jsonify({'error': 'Non autorisé'}), 403
 
-    res = "jour"
+    # Resolution value (mois, jour, heure)
+    res = "heure"
+    # Trace type (bar, scatter)
+    trace_type = "bar"
 
     try:
         if project_id in project_stats and project_stats[project_id].get('stat_file_generated'):
@@ -1170,39 +1173,77 @@ def chart_data(project_id):
                 )
 
                 traces = []
-                for trace in fig.data:
-                    trace_data = {
-                        'type': 'scatter',
-                        'mode': 'lines',
-                        'fill': 'tonexty' if len(traces) > 0 else 'tozeroy',
-                        'stackgroup': 'one',
-                        'name': trace.name,
-                        'x': [str(x) for x in trace.x],
-                        'y': [float(str(y)) if str(y) != 'nan' else 0 for y in trace.y]
-                    }
-                    traces.append(trace_data)
 
-                result = {
-                    'data': traces,
-                    'layout': {
-                        'title': 'Autoconsommation cumulée par ' + res,
-                        'xaxis': {'title': 'Date'},
-                        'yaxis': {'title': 'Autoconsommation (kWh)'},
-                        'legend': {
-                            'orientation': 'h',
-                            'x': 0.5,
-                            'xanchor': 'center',
-                            'y': -0.2,
-                            'yanchor': 'top'
+                if trace_type == 'bar':
+                    for trace in fig.data:
+                        trace_data = {
+                            'type': 'bar',  # Changé de 'scatter' à 'bar'
+                            'name': trace.name,
+                            'x': [str(x) for x in trace.x],
+                            'y': [float(str(y)) if str(y) != 'nan' else 0 for y in trace.y]
                         }
-                    },
-                    'indicators': {
-                        'auto_consumption_rate_global': round(project_stats[project_id]['auto_consumption_rate_global'], 2),
-                        'auto_production_rate_global': round(project_stats[project_id]['auto_production_rate_global'],
-                                                             2),
-                        'coverage_rate': round(project_stats[project_id]['coverage_rate'], 2)
+                        traces.append(trace_data)
+
+                    result = {
+                        'data': traces,
+                        'layout': {
+                            'title': 'Autoconsommation cumulée par ' + res,
+                            'xaxis': {'title': 'Date'},
+                            'yaxis': {'title': 'Autoconsommation (Wh)'},
+                            'barmode': 'stack',  # Important : ajouter cette ligne pour empiler les barres
+                            'legend': {
+                                'orientation': 'h',
+                                'x': 0.5,
+                                'xanchor': 'center',
+                                'y': -0.2,
+                                'yanchor': 'top'
+                            }
+                        },
+                        'indicators': {
+                            'auto_consumption_rate_global': round(project_stats[project_id]['auto_consumption_rate_global'],
+                                                                  2),
+                            'auto_production_rate_global': round(project_stats[project_id]['auto_production_rate_global'],
+                                                                 2),
+                            'coverage_rate': round(project_stats[project_id]['coverage_rate'], 2)
+                        }
                     }
-                }
+                else:
+                    for trace in fig.data:
+                        trace_data = {
+                            'type': 'scatter',
+                            'mode': 'lines',
+                            'fill': 'tonexty' if len(traces) > 0 else 'tozeroy',
+                            'stackgroup': 'one',
+                            'name': trace.name,
+                            'x': [str(x) for x in trace.x],
+                            'y': [float(str(y)) if str(y) != 'nan' else 0 for y in trace.y]
+                        }
+                        traces.append(trace_data)
+
+                    result = {
+                        'data': traces,
+                        'layout': {
+                            'title': 'Autoconsommation cumulée par ' + res,
+                            'xaxis': {'title': 'Date'},
+                            'yaxis': {'title': 'Autoconsommation (kWh)'},
+                            'legend': {
+                                'orientation': 'h',
+                                'x': 0.5,
+                                'xanchor': 'center',
+                                'y': -0.2,
+                                'yanchor': 'top'
+                            }
+                        },
+                        'indicators': {
+                            'auto_consumption_rate_global': round(
+                                project_stats[project_id]['auto_consumption_rate_global'],
+                                2),
+                            'auto_production_rate_global': round(
+                                project_stats[project_id]['auto_production_rate_global'],
+                                2),
+                            'coverage_rate': round(project_stats[project_id]['coverage_rate'], 2)
+                        }
+                    }
 
                 return jsonify(result)
 
@@ -1212,7 +1253,7 @@ def chart_data(project_id):
             'layout': {
                 'title': 'Aucune donnée disponible - Veuillez calculer les clés de répartition',
                 'xaxis': {'title': 'Date'},
-                'yaxis': {'title': 'Autoconsommation (kWh)'},
+                'yaxis': {'title': 'Autoconsommation (Wh)'},
                 'annotations': [{
                     'x': 0.5, 'y': 0.5,
                     'xref': 'paper', 'yref': 'paper',
@@ -1237,7 +1278,7 @@ def chart_data(project_id):
             'layout': {
                 'title': 'Erreur lors de la génération du graphique',
                 'xaxis': {'title': 'Date'},
-                'yaxis': {'title': 'Autoconsommation (kWh)'},
+                'yaxis': {'title': 'Autoconsommation (Wh)'},
                 'annotations': [{
                     'x': 0.5, 'y': 0.5,
                     'xref': 'paper', 'yref': 'paper',
