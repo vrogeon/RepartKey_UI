@@ -1146,10 +1146,9 @@ def chart_data(project_id):
     if project.user_id != current_user.id:
         return jsonify({'error': 'Non autorisé'}), 403
 
-    # Resolution value (mois, jour, heure)
-    res = "jour"
-    # Trace type (bar, scatter)
-    trace_type = "bar"
+    # Utiliser les paramètres sauvegardés du projet
+    res = project.graph_resolution or 'jour'
+    trace_type = project.graph_type or 'scatter'
 
     try:
         if project_id in project_stats and project_stats[project_id].get('stat_file_generated'):
@@ -1174,7 +1173,7 @@ def chart_data(project_id):
                 if trace_type == 'bar':
                     for trace in fig.data:
                         trace_data = {
-                            'type': 'bar',  # Changé de 'scatter' à 'bar'
+                            'type': 'bar',
                             'name': trace.name,
                             'x': [str(x) for x in trace.x],
                             'y': [float(str(y)) if str(y) != 'nan' else 0 for y in trace.y]
@@ -1184,10 +1183,10 @@ def chart_data(project_id):
                     result = {
                         'data': traces,
                         'layout': {
-                            'title': 'Autoconsommation cumulée par ' + res,
+                            'title': f'Autoconsommation cumulée par {res}',
                             'xaxis': {'title': 'Date'},
                             'yaxis': {'title': 'Autoconsommation (Wh)'},
-                            'barmode': 'stack',  # Important : ajouter cette ligne pour empiler les barres
+                            'barmode': 'stack',
                             'legend': {
                                 'orientation': 'h',
                                 'x': 0.5,
@@ -1197,10 +1196,8 @@ def chart_data(project_id):
                             }
                         },
                         'indicators': {
-                            'auto_consumption_rate_global': round(project_stats[project_id]['auto_consumption_rate_global'],
-                                                                  2),
-                            'auto_production_rate_global': round(project_stats[project_id]['auto_production_rate_global'],
-                                                                 2),
+                            'auto_consumption_rate_global': round(project_stats[project_id]['auto_consumption_rate_global'], 2),
+                            'auto_production_rate_global': round(project_stats[project_id]['auto_production_rate_global'], 2),
                             'coverage_rate': round(project_stats[project_id]['coverage_rate'], 2)
                         }
                     }
@@ -1220,7 +1217,7 @@ def chart_data(project_id):
                     result = {
                         'data': traces,
                         'layout': {
-                            'title': 'Autoconsommation cumulée par ' + res,
+                            'title': f'Autoconsommation cumulée par {res}',
                             'xaxis': {'title': 'Date'},
                             'yaxis': {'title': 'Autoconsommation (kWh)'},
                             'legend': {
@@ -1232,12 +1229,8 @@ def chart_data(project_id):
                             }
                         },
                         'indicators': {
-                            'auto_consumption_rate_global': round(
-                                project_stats[project_id]['auto_consumption_rate_global'],
-                                2),
-                            'auto_production_rate_global': round(
-                                project_stats[project_id]['auto_production_rate_global'],
-                                2),
+                            'auto_consumption_rate_global': round(project_stats[project_id]['auto_consumption_rate_global'], 2),
+                            'auto_production_rate_global': round(project_stats[project_id]['auto_production_rate_global'], 2),
                             'coverage_rate': round(project_stats[project_id]['coverage_rate'], 2)
                         }
                     }
@@ -1770,6 +1763,67 @@ def get_priority_settings(project_id):
     except Exception as e:
         app.logger.error(f"Erreur lors de la récupération des priorités: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/project/<int:project_id>/save_graph_settings', methods=['POST'])
+@login_required
+def save_graph_settings(project_id):
+    """Sauvegarde les paramètres de graphique du projet"""
+    try:
+        project = Project.query.get_or_404(project_id)
+
+        # Vérifier que l'utilisateur est propriétaire du projet
+        if project.user_id != current_user.id:
+            return jsonify({'success': False, 'message': 'Non autorisé'}), 403
+
+        data = request.get_json()
+
+        # Mettre à jour les paramètres
+        if 'graph_resolution' in data:
+            valid_resolutions = ['heure', 'jour', 'mois']
+            if data['graph_resolution'] in valid_resolutions:
+                project.graph_resolution = data['graph_resolution']
+
+        if 'graph_type' in data:
+            valid_types = ['scatter', 'bar']
+            if data['graph_type'] in valid_types:
+                project.graph_type = data['graph_type']
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Paramètres graphiques sauvegardés',
+            'graph_resolution': project.graph_resolution,
+            'graph_type': project.graph_type
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur lors de la sauvegarde des paramètres graphiques: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/project/<int:project_id>/get_graph_settings', methods=['GET'])
+@login_required
+def get_graph_settings(project_id):
+    """Récupère les paramètres de graphique du projet"""
+    try:
+        project = Project.query.get_or_404(project_id)
+
+        # Vérifier que l'utilisateur est propriétaire du projet
+        if project.user_id != current_user.id:
+            return jsonify({'success': False, 'message': 'Non autorisé'}), 403
+
+        return jsonify({
+            'success': True,
+            'graph_resolution': project.graph_resolution or 'jour',
+            'graph_type': project.graph_type or 'scatter'
+        })
+
+    except Exception as e:
+        app.logger.error(f"Erreur lors de la récupération des paramètres graphiques: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=False)

@@ -1220,9 +1220,36 @@ body {
                                 <option value="">--Choisir le type de clés de répartition--</option>
                                 <option value="default" selected>Dynamique par défaut</option>
                                 <option value="dynamic">Dynamique</option>
-<!--                                <option value="static">Statique</option>-->
                             </select>
                         </div>
+
+                        <div style="display: flex; gap: 20px; align-items: start;">
+
+                            <!-- Nouveau bloc pour le type de graphique -->
+                            <div>
+                                <h4 class="section-subtitle">Type de graphique</h4>
+                                <div style="margin-bottom: 10px;">
+                                    <select name="graph_type" id="graph_type" class="form-control" onchange="handleGraphSettingsChange()" style="margin-bottom: 10px;">
+                                        <option value="scatter">Courbes</option>
+                                        <option value="bar">Histogrammes</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Nouveau bloc pour la résolution graphique -->
+                            <div>
+                                <h4 class="section-subtitle">Résolution graphique</h4>
+                                <div style="margin-bottom: 10px;">
+                                    <select name="graph_resolution" id="graph_resolution" class="form-control" onchange="handleGraphSettingsChange()" style="margin-bottom: 10px;">
+                                        <option value="heure">Heures</option>
+                                        <option value="jour" selected>Jours</option>
+                                        <option value="mois">Mois</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                        </div>
+
                         <form id="computeForm">
                             <input type="hidden" name="cles" id="cles_hidden" value="default">
                             <button type="submit" class="btn btn-primary" style="width: 100%;">Calculer les clés de répartitions</button>
@@ -1232,7 +1259,7 @@ body {
                         <button
                             id="downloadExportFilesButton"
                             class="btn btn-secondary"
-                            style="width: 100%; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;"
+                            style="width: 100%; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; margin-top: 10px;"
                             onclick="downloadExportFiles()"
                         >
                             Télécharger les fichiers
@@ -1452,6 +1479,14 @@ class URLManager {
 
     getPrioritySettingsUrl() {
         return this.buildUrl('/get_priority_settings');
+    }
+
+    getSaveGraphSettingsUrl() {
+        return this.buildUrl('/save_graph_settings');
+    }
+
+    getGraphSettingsUrl() {
+        return this.buildUrl('/get_graph_settings');
     }
 }
 
@@ -2162,13 +2197,60 @@ function initializeSidebar() {
 window.toggleBlock = toggleBlockWithResize;
 
 
+// Fonction helper pour activer/désactiver les contrôles
+function setControlsEnabled(enabled) {
+    const elements = [
+        'cle',                    // Type de clés de répartition
+        'graph_resolution',       // Résolution graphique
+        'graph_type',            // Type de graphique
+        'downloadExportFilesButton'  // Bouton télécharger
+    ];
 
-// Chargement du graphique
+    elements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.disabled = !enabled;
+
+            // Ajouter/retirer une classe pour le style visuel
+            if (!enabled) {
+                element.classList.add('disabled-loading');
+            } else {
+                element.classList.remove('disabled-loading');
+            }
+        }
+    });
+
+    // Gérer le bouton de calcul dans le formulaire
+    const computeButton = document.querySelector('#computeForm button[type="submit"]');
+    if (computeButton) {
+        computeButton.disabled = !enabled;
+        if (!enabled) {
+            computeButton.classList.add('disabled-loading');
+            // Sauvegarder le texte original
+            if (!computeButton.hasAttribute('data-original-text')) {
+                computeButton.setAttribute('data-original-text', computeButton.textContent);
+            }
+            computeButton.innerHTML = '<span class="loading-spinner small"></span> Chargement...';
+        } else {
+            computeButton.classList.remove('disabled-loading');
+            // Restaurer le texte original
+            const originalText = computeButton.getAttribute('data-original-text');
+            if (originalText) {
+                computeButton.textContent = originalText;
+            }
+        }
+    }
+}
+
+// Fonction loadChart améliorée
 function loadChart() {
     console.log('Chargement du graphique...');
 
     const chartContainer = document.getElementById('chart');
     const chartLoading = document.getElementById('chart-loading');
+
+    // DÉSACTIVER les contrôles au début du chargement
+    setControlsEnabled(false);
 
     if (chartLoading) {
         chartLoading.style.display = 'flex';
@@ -2177,7 +2259,7 @@ function loadChart() {
         chartContainer.style.display = 'none';
     }
 
-    setIndicatorsLoading(true);
+    //setIndicatorsLoading(true);
 
     const dataUrl = urlManager.getDataUrl();
     console.log('URL de données:', dataUrl);
@@ -2223,14 +2305,9 @@ function loadChart() {
                     coverage_rate: '-'
                 });
 
-                // Activer le bouton de téléchargement
-               document.getElementById('downloadExportFilesButton').disabled = false;
-
+                // RÉACTIVER les contrôles
+                setControlsEnabled(true);
                 return;
-            }
-            else {
-                // Désactiver le bouton de téléchargement
-                //document.getElementById('downloadExportFilesButton').disabled = true;
             }
 
             const config = {
@@ -2264,11 +2341,17 @@ function loadChart() {
                             coverage_rate: '-'
                         });
                     }
+
+                    // RÉACTIVER les contrôles après succès
+                    setControlsEnabled(true);
                 })
                 .catch(error => {
                     console.error('Erreur lors de la création du graphique Plotly:', error);
                     showMessage('Erreur lors de l\'affichage du graphique', 'error');
                     setIndicatorsLoading(false);
+
+                    // RÉACTIVER les contrôles même en cas d'erreur
+                    setControlsEnabled(true);
                 });
         })
         .catch(error => {
@@ -2294,8 +2377,46 @@ function loadChart() {
             if (!error.message.includes('404')) {
                 showMessage('Erreur lors du chargement des données du graphique', 'error');
             }
+
+            // RÉACTIVER les contrôles même en cas d'erreur
+            setControlsEnabled(true);
         });
 }
+
+// CSS supplémentaire pour l'état désactivé
+const style = document.createElement('style');
+style.textContent = `
+    .disabled-loading {
+        opacity: 0.6 !important;
+        cursor: not-allowed !important;
+        position: relative;
+    }
+
+    .disabled-loading::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.3);
+        z-index: 1;
+    }
+
+    /* Style spécifique pour les select désactivés */
+    select.disabled-loading {
+        background-color: #f0f0f0 !important;
+    }
+
+    /* Style pour le bouton avec spinner */
+    button .loading-spinner {
+        margin-right: 5px;
+        vertical-align: middle;
+    }
+
+    /* Animation du spinner déjà définie dans le CSS existant */
+`;
+document.head.appendChild(style);
 
 // Fonction pour mettre à jour les indicateurs
 function updateIndicators(indicators) {
@@ -3534,6 +3655,7 @@ function loadPrioritySettings() {
     document.addEventListener('DOMContentLoaded', function() {
         // Autres initialisations...
         loadPrioritySettings();
+        loadGraphSettings();
 
         // Si vous avez un bouton de sauvegarde spécifique, vous pouvez l'associer ainsi:
 <!--        const saveButton = document.getElementById('save-priorities');-->
@@ -3542,7 +3664,106 @@ function loadPrioritySettings() {
 <!--        }-->
     });
 
+    // Fonction pour charger les paramètres graphiques
+function loadGraphSettings() {
+    fetch(urlManager.getGraphSettingsUrl())
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Appliquer les valeurs aux champs de sélection
+                const resolutionSelect = document.getElementById('graph_resolution');
+                const typeSelect = document.getElementById('graph_type');
 
+                if (resolutionSelect && data.graph_resolution) {
+                    resolutionSelect.value = data.graph_resolution;
+                }
+
+                if (typeSelect && data.graph_type) {
+                    typeSelect.value = data.graph_type;
+                }
+
+                console.log('Paramètres graphiques chargés:', data);
+            }
+        })
+        .catch(error => {
+            console.error('Erreur lors du chargement des paramètres graphiques:', error);
+        });
+}
+
+// Fonction pour sauvegarder les paramètres graphiques
+function saveGraphSettings() {
+    const graphResolution = document.getElementById('graph_resolution').value;
+    const graphType = document.getElementById('graph_type').value;
+
+    const settings = {
+        graph_resolution: graphResolution,
+        graph_type: graphType
+    };
+
+    fetch(urlManager.getSaveGraphSettingsUrl(), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Paramètres graphiques sauvegardés:', settings);
+            // Recharger le graphique avec les nouveaux paramètres
+            loadChart();
+        } else {
+            console.error('Erreur lors de la sauvegarde:', data.message);
+            showMessage('Erreur lors de la sauvegarde des paramètres: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        showMessage('Erreur lors de la sauvegarde des paramètres', 'error');
+    });
+}
+
+// Fonction appelée quand les paramètres graphiques changent
+function handleGraphSettingsChange() {
+    // Désactiver immédiatement les contrôles
+    setControlsEnabled(false);
+
+    const graphResolution = document.getElementById('graph_resolution').value;
+    const graphType = document.getElementById('graph_type').value;
+
+    const settings = {
+        graph_resolution: graphResolution,
+        graph_type: graphType
+    };
+
+    fetch(urlManager.getSaveGraphSettingsUrl(), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Paramètres graphiques sauvegardés:', settings);
+            // loadChart() va gérer la réactivation des contrôles
+            loadChart();
+        } else {
+            console.error('Erreur lors de la sauvegarde:', data.message);
+            showMessage('Erreur lors de la sauvegarde des paramètres: ' + data.message, 'error');
+            // Réactiver les contrôles en cas d'erreur
+            setControlsEnabled(true);
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        showMessage('Erreur lors de la sauvegarde des paramètres', 'error');
+        // Réactiver les contrôles en cas d'erreur
+        setControlsEnabled(true);
+    });
+}
 </script>
 
 {% endblock %}

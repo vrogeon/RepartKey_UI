@@ -1,4 +1,4 @@
-# models.py - Nouveaux modèles pour l'authentification et les projets
+# models.py - Modèles avec champs pour configuration graphique
 
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
@@ -39,6 +39,11 @@ class Project(db.Model):
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=True)
     repartition_key_type = db.Column(db.String(50))
+
+    # Nouveaux champs pour la configuration graphique
+    graph_resolution = db.Column(db.String(20), default='jour')  # 'heure', 'jour', ou 'mois'
+    graph_type = db.Column(db.String(20), default='scatter')  # 'scatter' ou 'bar'
+
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     date_created = db.Column(db.DateTime, default=datetime.utcnow)
     last_modified = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -50,6 +55,7 @@ class Project(db.Model):
 
     def __repr__(self):
         return f'<Project {self.name}>'
+
 
 class PrioritySettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
