@@ -1,6 +1,7 @@
 # app_auth.py - Version avec authentification, gestion de projets et mode démo
 
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory, \
+    send_file
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -30,6 +31,36 @@ from flask import make_response
 # Configuration pour le mode démo
 DEMO_PROJECT_ID = -1
 DEMO_SESSIONS = {}  # Stockage des sessions démo temporaires
+
+
+def get_database_uri():
+    """
+    Détermine l'URI de la base de données selon l'environnement
+    """
+    # Détecter l'environnement
+    # Sur cPanel, la variable d'environnement HOME contient généralement /home/username
+    # ou vous pouvez définir une variable personnalisée
+    is_production = os.environ.get('FLASK_ENV') == 'production' or \
+                    os.environ.get('IS_CPANEL') == 'true' or \
+                    'home' in os.environ.get('HOME', '').lower()
+    # is_production = True
+    if is_production:
+        # Configuration PostgreSQL pour cPanel
+        db_user = os.environ.get('DB_USER', 'jumu2280_jumu2280')
+        db_password = os.environ.get('DB_PASSWORD', 'U8bq-3E8m-7hk#')
+        db_host = os.environ.get('DB_HOST', '127.0.0.1')
+        db_port = os.environ.get('DB_PORT', '5432')
+        db_name = os.environ.get('DB_NAME', 'jumu2280_repartkey_new')
+
+        database_uri = f'postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
+        print(f"🔵 Mode Production - Connexion à PostgreSQL: {db_host}/{db_name}")
+    else:
+        # Configuration SQLite pour le développement local
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        database_uri = f'sqlite:///{os.path.join(base_dir, "repartkey.db")}'
+        print(f"🟢 Mode Développement - Connexion à SQLite: repartkey.db")
+
+    return database_uri
 
 
 def cleanup_demo_session(session_id):
@@ -85,12 +116,15 @@ UPLOAD_FOLDER, EXPORT_FOLDER = setup_paths()
 app = Flask(__name__)
 
 # Configuration de la base de données et de la sécurité
-app.config[
-    'SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(os.path.dirname(os.path.abspath(__file__)), "repartkey.db")}'
+app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limite à 16MB
 app.config['SECRET_KEY'] = 'your-secret-key-change-this-in-production-2024'  # À changer en production
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,  # Vérifie la connexion avant de l'utiliser
+    'pool_recycle': 300,  # Recycle les connexions après 5 minutes
+}
 
 # Initialiser les extensions
 db.init_app(app)
@@ -158,9 +192,11 @@ with app.app_context():
     except Exception as e:
         print(f"Migration des colonnes: {e}")
 
+
 @app.route('/privacy')
 def privacy_policy():
     return render_template('privacy_policy.html')
+
 
 # Routes d'authentification
 @app.route('/login', methods=['GET', 'POST'])
@@ -748,6 +784,7 @@ def delete_project(project_id):
     flash(f'Projet "{project.name}" supprimé avec succès.', 'success')
     return redirect(url_for('projects'))
 
+
 @app.route('/update-project/<int:project_id>', methods=['POST'])
 @login_required
 def update_project(project_id):
@@ -774,6 +811,7 @@ def update_project(project_id):
     db.session.commit()
     return jsonify({'success': True})
 
+
 @app.route('/project/<int:project_id>')
 @login_required
 def project_dashboard(project_id):
@@ -799,7 +837,7 @@ def project_dashboard(project_id):
 # Fonctions utilitaires adaptées pour les projets
 def get_cons_list(project_id):
     """Retourne la liste des objets Consumer pour un projet spécifique"""
-    project = db.session.get(Project,project_id)
+    project = db.session.get(Project, project_id)
     if not project:
         return []
 
@@ -814,7 +852,7 @@ def get_cons_list(project_id):
 
 def get_prod_list(project_id):
     """Retourne la liste des objets Producer pour un projet spécifique"""
-    project = db.session.get(Project,project_id)
+    project = db.session.get(Project, project_id)
     if not project:
         return []
 
@@ -829,7 +867,7 @@ def get_prod_list(project_id):
 
 def get_producer_count(project_id):
     """Retourne le nombre de producteurs pour un projet spécifique"""
-    project = db.session.get(Project,project_id)
+    project = db.session.get(Project, project_id)
     if not project:
         return 0
     return project.producer_blocks.count()
@@ -837,7 +875,7 @@ def get_producer_count(project_id):
 
 def update_all_consumers_for_new_producer(project_id):
     """Met à jour tous les consumers d'un projet quand un nouveau producteur est ajouté"""
-    project = db.session.get(Project,project_id)
+    project = db.session.get(Project, project_id)
     if not project:
         return
 
@@ -855,7 +893,7 @@ def update_all_consumers_for_new_producer(project_id):
 
 def update_all_consumers_for_deleted_producer(project_id, producer_index):
     """Met à jour tous les consumers d'un projet quand un producteur est supprimé"""
-    project = db.session.get(Project,project_id)
+    project = db.session.get(Project, project_id)
     if not project:
         return
 
@@ -1107,7 +1145,8 @@ def compute_repartition_keys(project_id):
             auto_consumption_rate.append(rep.get_auto_consumption_rate(index_producer=prod_index))
             auto_consumption_rate_detailed.append([])
             for cons_index, consumer in enumerate(cons_list):
-                auto_consumption_rate_detailed[prod_index].append(rep.get_auto_consumption_rate(index_producer=prod_index, index_consumer=cons_index))
+                auto_consumption_rate_detailed[prod_index].append(
+                    rep.get_auto_consumption_rate(index_producer=prod_index, index_consumer=cons_index))
         project_stats[project_id]['auto_consumption_rate'] = auto_consumption_rate
         project_stats[project_id]['auto_consumption_rate_detailed'] = auto_consumption_rate_detailed
 
@@ -1117,19 +1156,20 @@ def compute_repartition_keys(project_id):
             auto_production_rate.append(rep.get_auto_production_rate(index_consumer=cons_index))
             auto_production_rate_detailed.append([])
             for prod_index, producer in enumerate(prod_list):
-                auto_production_rate_detailed[cons_index].append(rep.get_auto_production_rate(index_consumer=cons_index, index_producer=prod_index))
+                auto_production_rate_detailed[cons_index].append(
+                    rep.get_auto_production_rate(index_consumer=cons_index, index_producer=prod_index))
         project_stats[project_id]['auto_production_rate'] = auto_production_rate
         project_stats[project_id]['auto_production_rate_detailed'] = auto_production_rate_detailed
 
         return jsonify({
-                'success': True,
-                'message': f'Calcul des clés de répartition terminé avec succès (Stratégie: {key_type})',
-                'indicators': {
-                    'auto_consumption_rate_global': round(project_stats[project_id]['auto_consumption_rate_global'], 2),
-                    'auto_production_rate_global': round(project_stats[project_id]['auto_production_rate_global'], 2),
-                    'coverage_rate': round(project_stats[project_id]['coverage_rate'], 2)
-                }
-            })
+            'success': True,
+            'message': f'Calcul des clés de répartition terminé avec succès (Stratégie: {key_type})',
+            'indicators': {
+                'auto_consumption_rate_global': round(project_stats[project_id]['auto_consumption_rate_global'], 2),
+                'auto_production_rate_global': round(project_stats[project_id]['auto_production_rate_global'], 2),
+                'coverage_rate': round(project_stats[project_id]['coverage_rate'], 2)
+            }
+        })
 
     except Exception as e:
         print(f"Erreur lors du calcul : {str(e)}")
@@ -1196,8 +1236,10 @@ def chart_data(project_id):
                             }
                         },
                         'indicators': {
-                            'auto_consumption_rate_global': round(project_stats[project_id]['auto_consumption_rate_global'], 2),
-                            'auto_production_rate_global': round(project_stats[project_id]['auto_production_rate_global'], 2),
+                            'auto_consumption_rate_global': round(
+                                project_stats[project_id]['auto_consumption_rate_global'], 2),
+                            'auto_production_rate_global': round(
+                                project_stats[project_id]['auto_production_rate_global'], 2),
                             'coverage_rate': round(project_stats[project_id]['coverage_rate'], 2)
                         }
                     }
@@ -1229,8 +1271,10 @@ def chart_data(project_id):
                             }
                         },
                         'indicators': {
-                            'auto_consumption_rate_global': round(project_stats[project_id]['auto_consumption_rate_global'], 2),
-                            'auto_production_rate_global': round(project_stats[project_id]['auto_production_rate_global'], 2),
+                            'auto_consumption_rate_global': round(
+                                project_stats[project_id]['auto_consumption_rate_global'], 2),
+                            'auto_production_rate_global': round(
+                                project_stats[project_id]['auto_production_rate_global'], 2),
                             'coverage_rate': round(project_stats[project_id]['coverage_rate'], 2)
                         }
                     }
@@ -1327,7 +1371,7 @@ def upload_consumer_file(project_id):
                 return jsonify({'success': False, 'message': 'Le fichier n\'a pas pu être sauvegardé'})
 
             # Récupérer le ConsumerBlock et son objet
-            consumer_block = db.session.get(ConsumerBlock,int(consumer_id))
+            consumer_block = db.session.get(ConsumerBlock, int(consumer_id))
             if not consumer_block or consumer_block.project_id != project_id:
                 return jsonify({'success': False, 'message': 'Consommateur non trouvé'})
 
@@ -1386,7 +1430,7 @@ def upload_producer_file(project_id):
                 return jsonify({'success': False, 'message': 'Le fichier n\'a pas pu être sauvegardé'})
 
             # Récupérer le ProducerBlock et son objet
-            producer_block = db.session.get(ProducerBlock,int(producer_id))
+            producer_block = db.session.get(ProducerBlock, int(producer_id))
             if not producer_block or producer_block.project_id != project_id:
                 return jsonify({'success': False, 'message': 'Producteur non trouvé'})
 
@@ -1519,6 +1563,7 @@ def update_producer(project_id, producer_id):
 
     return render_template('update_producer.html', producer_block=producer_block, project_id=project_id)
 
+
 @app.route('/project/<int:project_id>/detailed_indicators', methods=['GET'])
 @login_required
 def get_detailed_indicators(project_id):
@@ -1546,20 +1591,23 @@ def get_detailed_indicators(project_id):
         indicators = []
         for cons_index, consumer in enumerate(cons_list):
             for prod_index, producer in enumerate(prod_list):
-
-                auto_production_rate = project_stats[project_id]['auto_production_rate_detailed'][cons_index][prod_index]
-                auto_consumption_rate = project_stats[project_id]['auto_consumption_rate_detailed'][prod_index][cons_index]
+                auto_production_rate = project_stats[project_id]['auto_production_rate_detailed'][cons_index][
+                    prod_index]
+                auto_consumption_rate = project_stats[project_id]['auto_consumption_rate_detailed'][prod_index][
+                    cons_index]
 
                 indicators.append({
                     'consumer_id': cons_index,  # Index du consommateur dans cons_list
-                    'producer_id': prod_index,   # Index du producteur dans prod_list
+                    'producer_id': prod_index,  # Index du producteur dans prod_list
                     'auto_production_rate': round(auto_production_rate, 2),
                     'auto_consumption_rate': round(auto_consumption_rate, 2)
                 })
 
         # Calculer les taux globaux
-        global_auto_consumption_rates = {str(prod_index): project_stats[project_id]['auto_consumption_rate'][prod_index] for prod_index in range(len(prod_list))}
-        global_auto_production_rates = {str(cons_index): project_stats[project_id]['auto_production_rate'][cons_index] for cons_index in range(len(cons_list))}
+        global_auto_consumption_rates = {str(prod_index): project_stats[project_id]['auto_consumption_rate'][prod_index]
+                                         for prod_index in range(len(prod_list))}
+        global_auto_production_rates = {str(cons_index): project_stats[project_id]['auto_production_rate'][cons_index]
+                                        for cons_index in range(len(cons_list))}
 
         return jsonify({
             'success': True,
@@ -1574,6 +1622,7 @@ def get_detailed_indicators(project_id):
             'success': False,
             'message': f'Erreur serveur : {str(e)}'
         }), 500
+
 
 @app.route('/project/<int:project_id>/export_files', methods=['GET'])
 @login_required
@@ -1620,6 +1669,7 @@ def list_export_files(project_id):
             'message': f'Erreur serveur: {str(e)}'
         }), 500
 
+
 # Route de téléchargement avec gestion manuelle de session
 @app.route('/project/<int:project_id>/download_export_file/<filename>', methods=['GET'])
 @login_required
@@ -1641,6 +1691,7 @@ def download_export_file(project_id, filename):
         print(f"Erreur lors du téléchargement du fichier: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+
 # Route pour télécharger tous les fichiers en un zip
 @app.route('/project/<int:project_id>/download_all_exports', methods=['POST'])
 @login_required
@@ -1650,26 +1701,26 @@ def download_all_exports(project_id):
         project = Project.query.get_or_404(project_id)
         if project.user_id != current_user.id:
             return jsonify({'error': 'Non autorisé'}), 403
-        
+
         project_export_folder = os.path.join(EXPORT_FOLDER, f'project_{project_id}')
-        
+
         if not os.path.exists(project_export_folder):
             return jsonify({'error': 'Aucun fichier à télécharger'}), 404
-        
+
         # Créer un fichier ZIP en mémoire
         import io
         import zipfile
-        
+
         memory_file = io.BytesIO()
-        
+
         with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for filename in os.listdir(project_export_folder):
                 file_path = os.path.join(project_export_folder, filename)
                 if os.path.isfile(file_path):
                     zipf.write(file_path, filename)
-        
+
         memory_file.seek(0)
-        
+
         # Retourner le ZIP
         return send_file(
             memory_file,
@@ -1677,7 +1728,7 @@ def download_all_exports(project_id):
             as_attachment=True,
             download_name=f'export_project_{project_id}.zip'
         )
-        
+
     except Exception as e:
         print(f"Erreur création ZIP: {e}")
         return jsonify({'error': str(e)}), 500
@@ -1698,11 +1749,13 @@ def save_repartition_key_type(project_id):
 
     return jsonify({'success': True, 'message': 'Type de clé de répartition sauvegardé avec succès'})
 
+
 @app.route('/project/<int:project_id>/get_repartition_key_type', methods=['GET'])
 @login_required
 def get_repartition_key_type(project_id):
     project = Project.query.get_or_404(project_id)
     return jsonify({'success': True, 'repartition_key_type': project.repartition_key_type})
+
 
 @app.route('/project/<int:project_id>/save_priority_settings', methods=['POST'])
 @login_required
@@ -1824,6 +1877,7 @@ def get_graph_settings(project_id):
     except Exception as e:
         app.logger.error(f"Erreur lors de la récupération des paramètres graphiques: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=False)
