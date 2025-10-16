@@ -300,7 +300,7 @@ def demo_mode():
         'id': DEMO_PROJECT_ID,
         'session_id': demo_session_id,
         'name': 'Projet Démonstration',
-        'description': 'Testez toutes les fonctionnalités de RepartKey',
+        'description': 'Testez toutes les fonctionnalités de RepartElec',
         'consumer_blocks': [],
         'producer_blocks': [],
         'created_at': datetime.utcnow().isoformat()
@@ -933,7 +933,7 @@ def add_consumer_block(project_id):
 
         producer_count = get_producer_count(project_id)
         priority_list = [0] * producer_count
-        ratio_list = [100] * producer_count
+        ratio_list = [10] * producer_count
 
         consumer = Consumer.Consumer(cons_name, cons_name, priority_list, ratio_list)
 

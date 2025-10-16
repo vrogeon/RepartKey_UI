@@ -1,4 +1,4 @@
-# Changelog - Mise à jour RepartKey
+# Changelog - Mise à jour RepartElec
 
 ## Version 2.1.0 - Amélioration Mode Démo et Nouveaux Champs Consommateur
 

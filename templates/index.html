@@ -1286,19 +1286,19 @@ body {
                                 <tr>
                                     <td style="border: 1px solid #ddd; padding: 6px; background-color: #f8f9fa; font-weight: bold;">TAC (Taux d'autoconsommation)</td>
                                     <td id="auto_consumption_rate_global" class="indicator-value" style="border: 1px solid #ddd; padding: 6px; background-color: white; text-align: right;">
-                                        <span class="indicator-loading">...</span>
+<!--                                        <span class="indicator-loading">...</span>-->
                                     </td>
                                 </tr>
                                 <tr>
                                     <td style="border: 1px solid #ddd; padding: 6px; background-color: #f8f9fa; font-weight: bold;">TAP (Taux d'autoproduction)</td>
                                     <td id="auto_production_rate_global" class="indicator-value" style="border: 1px solid #ddd; padding: 6px; background-color: white; text-align: right;">
-                                        <span class="indicator-loading">...</span>
+<!--                                        <span class="indicator-loading">...</span>-->
                                     </td>
                                 </tr>
                                 <tr>
                                     <td style="border: 1px solid #ddd; padding: 6px; background-color: #f8f9fa; font-weight: bold;">Taux de couverture</td>
                                     <td id="coverage_rate" class="indicator-value" style="border: 1px solid #ddd; padding: 6px; background-color: white; text-align: right;">
-                                        <span class="indicator-loading">...</span>
+<!--                                        <span class="indicator-loading">...</span>-->
                                     </td>
                                 </tr>
                             </tbody>
@@ -1632,7 +1632,7 @@ function addProducerToTable(producerData) {
                                  data-consumer-id="${consumerId}"
                                  data-producer-index="${producerIndex}"
                                  data-field-type="ratio"
-                                 onblur="updateConsumerData(this)">100</div>
+                                 onblur="updateConsumerData(this)">10</div>
                         </div>
                     </div>
                 `;
@@ -1643,6 +1643,7 @@ function addProducerToTable(producerData) {
     });
 
     handleKeyTypeChange();
+    refreshDetailedIndicatorsTable();
 }
 
 // Fonction pour ajouter dynamiquement un consommateur au tableau
@@ -1701,7 +1702,7 @@ function addConsumerToTable(consumerData) {
                          data-consumer-id="${consumerData.id}"
                          data-producer-index="${i}"
                          data-field-type="ratio"
-                         onblur="updateConsumerData(this)">100</div>
+                         onblur="updateConsumerData(this)">10</div>
                 </div>
             </div>
         `;
@@ -1710,6 +1711,7 @@ function addConsumerToTable(consumerData) {
 
     table.appendChild(newRow);
     handleKeyTypeChange();
+    refreshDetailedIndicatorsTable();
 }
 
 // Fonction pour supprimer dynamiquement un producteur
@@ -1727,6 +1729,7 @@ function removeProducerFromTable(producerId) {
     });
 
     updateProducerIndices();
+    refreshDetailedIndicatorsTable();
 }
 
 // Fonction pour supprimer dynamiquement un consommateur
@@ -1738,6 +1741,7 @@ function removeConsumerFromTable(consumerId) {
             row.remove();
         }
     }
+    refreshDetailedIndicatorsTable();
 }
 
 // Mettre à jour les indices après suppression
@@ -2836,7 +2840,7 @@ function generatePriorityTable() {
                                    onchange="togglePriorityMode(${priority}, ${prodIndex}, this.checked)">
                             <span class="priority-toggle-slider"></span>
                         </label>
-                        <span class="priority-toggle-label ${isChecked ? 'ratio' : 'default'}">
+                        <span class="priority-toggle-label ${isChecked ? 'Manuel' : 'Automatique'}">
                             ${isChecked ? 'Manuel' : 'Automatique'}
                         </span>
                     </div>
@@ -2863,7 +2867,7 @@ function getPriorityMode(priority, producerIndex) {
     const key = `${priority}_${producerIndex}`;
     // Par défaut, utiliser le mode auto (qui correspond à enabled: false dans la DB)
     if (!(key in priorityModes)) {
-        priorityModes[key] = 'auto';
+        priorityModes[key] = 'Automatique';
     }
     return priorityModes[key];
 }
@@ -2871,7 +2875,7 @@ function getPriorityMode(priority, producerIndex) {
 // Fonction pour basculer le mode d'une priorité
 function togglePriorityMode(priority, producerIndex, useManual) {
     const key = `${priority}_${producerIndex}`;
-    priorityModes[key] = useManual ? 'default' : 'ratio';
+    priorityModes[key] = useManual ? 'Manuel' : 'Automatique';
 
     const toggleId = `priority_${priority}_prod_${producerIndex}`;
     const toggleElement = document.getElementById(toggleId);
@@ -2879,7 +2883,7 @@ function togglePriorityMode(priority, producerIndex, useManual) {
         const labelElement = toggleElement.closest('.priority-toggle-container').querySelector('.priority-toggle-label');
         if (labelElement) {
             labelElement.textContent = useManual ? 'Manuel' : 'Automatique';
-            labelElement.className = `priority-toggle-label ${useManual ? 'default' : 'ratio'}`;
+            labelElement.className = `priority-toggle-label ${useManual ? 'Manuel' : 'Automatique'}`;
         }
     }
 
@@ -2988,7 +2992,7 @@ function recalculateRatiosForPriority(priority, producerIndex) {
 }
 
 // Fonction pour mettre à jour les champs ratio en fonction du mode de priorité
-function updateRatioFieldsForPriority(priority, producerIndex, useRatio) {
+function updateRatioFieldsForPriority(priority, producerIndex, useManual) {
     // Trouver tous les champs avec cette priorité et ce producteur
     document.querySelectorAll(`.priority-field[data-producer-index="${producerIndex}"]`).forEach(priorityField => {
         const currentPriority = parseInt(priorityField.textContent.trim());
@@ -3000,7 +3004,7 @@ function updateRatioFieldsForPriority(priority, producerIndex, useRatio) {
             );
 
             if (ratioField) {
-                if (useRatio) {
+                if (useManual) {
                     // Activer le champ ratio
                     ratioField.classList.remove('disabled');
                     ratioField.contentEditable = 'true';
@@ -3068,7 +3072,7 @@ function handleKeyTypeChange() {
                 Object.keys(priorityModes).forEach(key => {
                     const [priority, producerIndex] = key.split('_').map(Number);
                     const mode = priorityModes[key];
-                    updateRatioFieldsForPriority(priority, producerIndex, mode === 'ratio');
+                    updateRatioFieldsForPriority(priority, producerIndex, mode === 'Manuel');
                 });
 
                 // Valider les ratios
@@ -3580,7 +3584,7 @@ function savePrioritySettings() {
             prioritySettings.push({
                 producer: producerIndex,
                 priority: priority,
-                enabled: toggle.checked  // true si le mode est "Manuel", false si "Défaut"
+                enabled: toggle.checked  // true si le mode est "Manuel", false si "Automatique"
             });
         }
     });
@@ -3618,7 +3622,7 @@ function savePrioritySettings() {
     });
 }
 
-    // Fonction pour charger les paramètres de priorité
+// Fonction pour charger les paramètres de priorité
 function loadPrioritySettings() {
     fetch(urlManager.getPrioritySettingsUrl())
     .then(response => response.json())
@@ -3631,7 +3635,7 @@ function loadPrioritySettings() {
             data.data.forEach(setting => {
                 const key = `${setting.priority}_${setting.producer}`;
                 // Convertir enabled (boolean) vers le mode approprié
-                priorityModes[key] = setting.enabled ? 'ratio' : 'default';
+                priorityModes[key] = setting.enabled;
             });
 
             // Générer le tableau avec les paramètres chargés
@@ -3763,6 +3767,116 @@ function handleGraphSettingsChange() {
         // Réactiver les contrôles en cas d'erreur
         setControlsEnabled(true);
     });
+}
+
+// Fonction pour récupérer la liste des consommateurs
+function getConsumers() {
+    const consumers = [];
+    const table = document.querySelector('#tableauSidebar table tbody');
+
+    if (!table) return consumers;
+
+    const rows = table.querySelectorAll('tr');
+    // Parcourir toutes les lignes sauf la première (qui contient les producteurs)
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const firstCell = row.querySelector('td:first-child');
+        if (firstCell) {
+            const strongElement = firstCell.querySelector('strong');
+            if (strongElement) {
+                const consumerName = strongElement.textContent.trim();
+                const consumerForm = firstCell.querySelector('form[id^="form_consumer_"]');
+                const consumerId = consumerForm ? consumerForm.id.replace('form_consumer_', '') : i - 1;
+
+                consumers.push({
+                    id: consumerId,
+                    name: consumerName
+                });
+            }
+        }
+    }
+
+    console.log('Found consumers:', consumers);
+    return consumers;
+}
+
+// Fonction pour rafraîchir la structure du tableau des indicateurs détaillés
+function refreshDetailedIndicatorsTable() {
+    const tableBody = document.querySelector('#detailedIndicatorsTable tbody');
+    const tableHead = document.querySelector('#detailedIndicatorsTable thead');
+
+    if (!tableBody || !tableHead) {
+        console.error('Tableau des indicateurs détaillés introuvable');
+        return;
+    }
+
+    // Récupérer les producteurs et consommateurs actuels
+    const producers = getProducers();
+    const consumers = getConsumers();
+
+    console.log('Rafraîchissement du tableau - Producteurs:', producers, 'Consommateurs:', consumers);
+
+    // Régénérer l'en-tête
+    let headerHTML = `
+        <tr>
+            <th rowspan="2" style="position: relative; width: 150px; border: 1px solid #ddd; padding: 8px; background-color: #f8f9fa;">
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+                    <div class="diagonal-cell-header">
+                        <div class="TAP">TAP</div>
+                        <div class="TAC">TAC</div>
+                    </div>
+                </div>
+            </th>
+    `;
+
+    producers.forEach(producer => {
+        headerHTML += `
+            <th style="border: 1px solid #ddd; padding: 8px; background-color: #f8f9fa; text-align: center; font-size: 13px;">
+                <div>${producer.name}</div>
+                <div class="global-auto-consumption-rate" data-producer-id="${producer.id}">-</div>
+            </th>
+        `;
+    });
+
+    headerHTML += '</tr>';
+    tableHead.innerHTML = headerHTML;
+
+    // Régénérer le corps du tableau
+    let bodyHTML = '';
+    consumers.forEach((consumer, consIndex) => {
+        bodyHTML += `
+            <tr>
+                <th style="border: 1px solid #ddd; padding: 8px; background-color: #f8f9fa; font-size: 13px;">
+                    <div>${consumer.name}</div>
+                    <div class="global-auto-production-rate" data-consumer-id="${consIndex}">-</div>
+                </th>
+        `;
+
+        producers.forEach((producer, prodIndex) => {
+            bodyHTML += `
+                <td style="border: 1px solid #ddd; padding: 0; position: relative;" class="diagonal-cell">
+                    <div class="value-container">
+                        <div class="auto-production-rate"
+                             data-consumer-id="${consIndex}"
+                             data-producer-id="${prodIndex}">
+                            -
+                        </div>
+                        <div class="auto-consumption-rate"
+                             data-consumer-id="${consIndex}"
+                             data-producer-id="${prodIndex}">
+                            -
+                        </div>
+                    </div>
+                </td>
+            `;
+        });
+
+        bodyHTML += '</tr>';
+    });
+
+    tableBody.innerHTML = bodyHTML;
+
+    console.log('Tableau des indicateurs détaillés rafraîchi');
 }
 </script>
 

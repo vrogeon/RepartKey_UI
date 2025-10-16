@@ -1,4 +1,4 @@
-# 🚀 Guide de démarrage rapide - RepartKey avec authentification
+# 🚀 Guide de démarrage rapide - RepartElec avec authentification
 
 ## Installation en 5 minutes
 
@@ -239,4 +239,4 @@ En cas de problème :
 
 ---
 
-**Bon usage de RepartKey !** ⚡
+**Bon usage de RepartElec !** ⚡

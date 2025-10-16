@@ -2,7 +2,7 @@
 # deploy_cpanel.sh - Script de déploiement pour cPanel
 
 echo "================================================"
-echo "   Déploiement RepartKey sur cPanel"
+echo "   Déploiement RepartElec sur cPanel"
 echo "================================================"
 
 # Variables

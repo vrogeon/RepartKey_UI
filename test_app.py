@@ -75,7 +75,7 @@ class TestRepartKeyAuth(unittest.TestCase):
         """Test d'accès à la page de connexion"""
         response = self.client.get('/login')
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'RepartKey', response.data)
+        self.assertIn(b'RepartElec', response.data)
     
     def test_register_page(self):
         """Test d'accès à la page d'inscription"""

@@ -1,4 +1,4 @@
-# config.py - Configuration centralisée pour RepartKey
+# config.py - Configuration centralisée pour RepartElec
 
 import os
 from datetime import timedelta
