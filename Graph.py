@@ -109,13 +109,13 @@ def generate_graph(file, sep, group=False, resolution='hour'):
 
         # Créer le tableau pivot selon la résolution
         if resolution == 'mois':
-            piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'year', 'month'], aggfunc='sum').reset_index()
+            piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'year', 'month'], aggfunc='sum',sort=False).reset_index()
             piv['date'] = pd.to_datetime(piv[['year', 'month']].assign(day=1))
         elif resolution == 'jour':
-            piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'year', 'month', 'day'], aggfunc='sum').reset_index()
+            piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'year', 'month', 'day'], aggfunc='sum',sort=False).reset_index()
             piv['date'] = pd.to_datetime(piv[['year', 'month', 'day']])
         else:  # hour
-            piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'year', 'month', 'day', 'hour'], aggfunc='sum').reset_index()
+            piv = pd.pivot_table(area, values='auto_cons', index=['id_cons', 'year', 'month', 'day', 'hour'], aggfunc='sum',sort=False).reset_index()
             piv['date'] = pd.to_datetime(piv[['year', 'month', 'day', 'hour']])
 
         print(f"Données pivotées: {len(piv)} lignes")

@@ -1232,7 +1232,8 @@ def chart_data(project_id):
                                 'x': 0.5,
                                 'xanchor': 'center',
                                 'y': -0.2,
-                                'yanchor': 'top'
+                                'yanchor': 'top',
+                                'traceorder': 'normal'
                             }
                         },
                         'indicators': {
@@ -1267,7 +1268,8 @@ def chart_data(project_id):
                                 'x': 0.5,
                                 'xanchor': 'center',
                                 'y': -0.2,
-                                'yanchor': 'top'
+                                'yanchor': 'top',
+                                'traceorder': 'normal'
                             }
                         },
                         'indicators': {
