@@ -2083,7 +2083,7 @@ function updateConsumerData(element) {
     }
 
     const data = {
-        consumer_id: consumerId,
+        consumer_id: parseInt(consumerId),
         producer_index: parseInt(producerIndex),
         field_type: fieldType,
         value: parseInt(value) || 0
@@ -2100,6 +2100,32 @@ function updateConsumerData(element) {
     .then(data => {
         if (data.success) {
             console.log('Données mises à jour avec succès');
+
+            // *** CORRECTION 2.1 : Si c'est une priorité qui a été mise à jour ***
+            if (fieldType === 'priority') {
+                // Recalculer les ratios pour TOUTES les priorités affectées
+                const allPriorities = getUniquePriorities();
+                const producerCount = getProducers().length;
+
+                // Parcourir tous les producteurs
+                for (let prodIdx = 0; prodIdx < producerCount; prodIdx++) {
+                    // Pour chaque priorité existante
+                    allPriorities.forEach(prio => {
+                        // Vérifier si cette priorité est en mode automatique
+                        const mode = getPriorityMode(prio, prodIdx);
+                        console.log('DEBUG1: Calcul pour la priorité:', prio);
+                        console.log('DEBUG1: Mode:', mode);
+                        if (mode === 'Automatique') {
+                            // Recalculer les ratios pour cette priorité/producteur
+                            console.log('DEBUG2: Calcul pour la priorité:', prio);
+                            recalculateRatiosForPriority(prio, prodIdx);
+                        }
+                    });
+                }
+
+                // Rafraîchir le tableau de priorités après un délai
+                setTimeout(refreshPriorityTable, 500);
+            }
 
             // Si c'est un ratio, valider et afficher l'indicateur de somme
             if (fieldType === 'ratio' && priority !== null) {
@@ -2944,6 +2970,7 @@ function recalculateRatiosForPriority(priority, producerIndex) {
     const consumerFields = document.querySelectorAll(`.priority-field[data-producer-index="${producerIndex}"]`);
     let consumerCount = 0;
     const consumerIds = [];
+
     consumerFields.forEach(field => {
         const currentPriority = parseInt(field.textContent.trim());
         if (currentPriority === priority) {
@@ -2962,13 +2989,15 @@ function recalculateRatiosForPriority(priority, producerIndex) {
                 if (!ratioField.hasAttribute('data-manual-value')) {
                     ratioField.setAttribute('data-manual-value', ratioField.textContent);
                 }
-                // Ne pas modifier l'affichage, mais envoyer la valeur calculée au serveur
+
+                // *** CORRECTION : Convertir en entiers ***
                 const formData = {
-                    consumer_id: consumerId,
-                    producer_index: producerIndex,
+                    consumer_id: parseInt(consumerId),           // Conversion en int
+                    producer_index: parseInt(producerIndex),     // Conversion en int
                     field_type: 'ratio',
-                    value: equalRatio.toFixed(0)
+                    value: parseInt(equalRatio.toFixed(0))       // Conversion en int
                 };
+
                 // Appeler updateConsumerData avec la valeur calculée
                 fetch(urlManager.getUpdateConsumerDataUrl(), {
                     method: 'POST',
@@ -3635,7 +3664,7 @@ function loadPrioritySettings() {
             data.data.forEach(setting => {
                 const key = `${setting.priority}_${setting.producer}`;
                 // Convertir enabled (boolean) vers le mode approprié
-                priorityModes[key] = setting.enabled;
+                priorityModes[key] = setting.enabled ? 'Manuel' : 'Automatique';
             });
 
             // Générer le tableau avec les paramètres chargés
