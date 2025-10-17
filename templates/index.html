@@ -2303,11 +2303,11 @@ function loadChart() {
                 };
                 Plotly.newPlot('chart', [], emptyLayout, {responsive: true});
 
-                updateIndicators({
-                    auto_consumption_rate_global: '-',
-                    auto_production_rate_global: '-',
-                    coverage_rate: '-'
-                });
+<!--                updateIndicators({-->
+<!--                    auto_consumption_rate_global: '-',-->
+<!--                    auto_production_rate_global: '-',-->
+<!--                    coverage_rate: '-'-->
+<!--                });-->
 
                 // RÉACTIVER les contrôles
                 setControlsEnabled(true);
@@ -2336,15 +2336,15 @@ function loadChart() {
 
                     chartContainer.classList.add('data-loaded');
 
-                    if (fig.indicators) {
-                        updateIndicators(fig.indicators);
-                    } else {
-                        updateIndicators({
-                            auto_consumption_rate_global: '-',
-                            auto_production_rate_global: '-',
-                            coverage_rate: '-'
-                        });
-                    }
+<!--                    if (fig.indicators) {-->
+<!--                        updateIndicators(fig.indicators);-->
+<!--                    } else {-->
+<!--                        updateIndicators({-->
+<!--                            auto_consumption_rate_global: '-',-->
+<!--                            auto_production_rate_global: '-',-->
+<!--                            coverage_rate: '-'-->
+<!--                        });-->
+<!--                    }-->
 
                     // RÉACTIVER les contrôles après succès
                     setControlsEnabled(true);
@@ -2372,11 +2372,11 @@ function loadChart() {
                 `;
             }
 
-            updateIndicators({
-                auto_consumption_rate_global: '-',
-                auto_production_rate_global: '-',
-                coverage_rate: '-'
-            });
+<!--            updateIndicators({-->
+<!--                auto_consumption_rate_global: '-',-->
+<!--                auto_production_rate_global: '-',-->
+<!--                coverage_rate: '-'-->
+<!--            });-->
 
             if (!error.message.includes('404')) {
                 showMessage('Erreur lors du chargement des données du graphique', 'error');
@@ -3786,7 +3786,13 @@ function getConsumers() {
             if (strongElement) {
                 const consumerName = strongElement.textContent.trim();
                 const consumerForm = firstCell.querySelector('form[id^="form_consumer_"]');
-                const consumerId = consumerForm ? consumerForm.id.replace('form_consumer_', '') : i - 1;
+                let consumerId = i - 1; // Valeur par défaut basée sur l'index
+
+                if (consumerForm && consumerForm.id) {
+                    // Convertir en string et extraire l'ID
+                    const formIdString = String(consumerForm.id);
+                    consumerId = formIdString.replace('form_consumer_', '');
+                }
 
                 consumers.push({
                     id: consumerId,
