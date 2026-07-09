@@ -1180,13 +1180,13 @@ body {
                             <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">
                                 <div style="display: flex; gap: 10px; justify-content: center; align-items: flex-start;">
                                     <div style="flex: 1;">
-                                        <strong>Priorité:</strong><br>
+                                        <strong>Priorité</strong><br>
                                         <div title="prio" class="text-content priority-field" contenteditable="true" style="border: 1px solid #ccc; padding: 5px; background: white; margin-top: 5px;" data-consumer-id="{{ consumer_block.id }}" data-producer-index="{{ loop.index0 }}" data-field-type="priority" onblur="updateConsumerData(this)">
                                             {{ consumer_block.get_priority_for_producer(loop.index0) if consumer_block.get_priority_for_producer(loop.index0) is defined else 0 }}
                                         </div>
                                     </div>
                                     <div style="flex: 1;">
-                                        <strong>Ratio:</strong><br>
+                                        <strong>Ratio</strong><br>
                                         <div class="text-content ratio-field" contenteditable="true" style="border: 1px solid #ccc; padding: 5px; background: white; margin-top: 5px;" data-consumer-id="{{ consumer_block.id }}" data-producer-index="{{ loop.index0 }}" data-field-type="ratio" onblur="updateConsumerData(this)">
                                             {{ consumer_block.get_ratio_for_producer(loop.index0) if consumer_block.get_ratio_for_producer(loop.index0) is defined else 0 }}
                                         </div>
@@ -1617,7 +1617,7 @@ function addProducerToTable(producerData) {
                 newCell.innerHTML = `
                     <div style="display: flex; gap: 10px; justify-content: center; align-items: flex-start;">
                         <div style="flex: 1;">
-                            <strong>Priorité:</strong><br>
+                            <strong>Priorité</strong><br>
                             <div title="prio" class="text-content priority-field" contenteditable="true"
                                  style="border: 1px solid #ccc; padding: 5px; background: white; margin-top: 5px;"
                                  data-consumer-id="${consumerId}"
@@ -1626,7 +1626,7 @@ function addProducerToTable(producerData) {
                                  onblur="updateConsumerData(this)">0</div>
                         </div>
                         <div style="flex: 1;">
-                            <strong>Ratio:</strong><br>
+                            <strong>Ratio</strong><br>
                             <div class="text-content ratio-field" contenteditable="true"
                                  style="border: 1px solid #ccc; padding: 5px; background: white; margin-top: 5px;"
                                  data-consumer-id="${consumerId}"
@@ -1687,7 +1687,7 @@ function addConsumerToTable(consumerData) {
         cell.innerHTML = `
             <div style="display: flex; gap: 10px; justify-content: center; align-items: flex-start;">
                 <div style="flex: 1;">
-                    <strong>Priorité:</strong><br>
+                    <strong>Priorité</strong><br>
                     <div title="prio" class="text-content priority-field" contenteditable="true"
                          style="border: 1px solid #ccc; padding: 5px; background: white; margin-top: 5px;"
                          data-consumer-id="${consumerData.id}"
@@ -1696,7 +1696,7 @@ function addConsumerToTable(consumerData) {
                          onblur="updateConsumerData(this)">0</div>
                 </div>
                 <div style="flex: 1;">
-                    <strong>Ratio:</strong><br>
+                    <strong>Ratio</strong><br>
                     <div class="text-content ratio-field" contenteditable="true"
                          style="border: 1px solid #ccc; padding: 5px; background: white; margin-top: 5px;"
                          data-consumer-id="${consumerData.id}"
@@ -2115,9 +2115,9 @@ function updateConsumerData(element) {
                         const mode = getPriorityMode(prio, prodIdx);
                         console.log('DEBUG1: Calcul pour la priorité:', prio);
                         console.log('DEBUG1: Mode:', mode);
-                        if (mode === 'Automatique') {
+                        if (mode === false) {
                             // Recalculer les ratios pour cette priorité/producteur
-                            console.log('DEBUG2: Calcul pour la priorité:', prio);
+                            console.log('DEBUG1b: Calcul pour la priorité:', prio);
                             recalculateRatiosForPriority(prio, prodIdx);
                         }
                     });
@@ -2855,7 +2855,9 @@ function generatePriorityTable() {
 
         producers.forEach((prod, prodIndex) => {
             const toggleId = `priority_${priority}_prod_${prodIndex}`;
-            const isChecked = getPriorityMode(priority, prodIndex) === 'ratio';
+            const isChecked = getPriorityMode(priority, prodIndex);
+            console.log('DEBUG2: Calcul pour la priorité:', priority);
+            console.log('DEBUG2: Mode:', isChecked);
 
             tableHTML += `
                 <td>
@@ -2893,7 +2895,7 @@ function getPriorityMode(priority, producerIndex) {
     const key = `${priority}_${producerIndex}`;
     // Par défaut, utiliser le mode auto (qui correspond à enabled: false dans la DB)
     if (!(key in priorityModes)) {
-        priorityModes[key] = 'Automatique';
+        priorityModes[key] = false;
     }
     return priorityModes[key];
 }
@@ -2901,7 +2903,7 @@ function getPriorityMode(priority, producerIndex) {
 // Fonction pour basculer le mode d'une priorité
 function togglePriorityMode(priority, producerIndex, useManual) {
     const key = `${priority}_${producerIndex}`;
-    priorityModes[key] = useManual ? 'Manuel' : 'Automatique';
+    priorityModes[key] = useManual ;
 
     const toggleId = `priority_${priority}_prod_${producerIndex}`;
     const toggleElement = document.getElementById(toggleId);
@@ -3101,7 +3103,7 @@ function handleKeyTypeChange() {
                 Object.keys(priorityModes).forEach(key => {
                     const [priority, producerIndex] = key.split('_').map(Number);
                     const mode = priorityModes[key];
-                    updateRatioFieldsForPriority(priority, producerIndex, mode === 'Manuel');
+                    updateRatioFieldsForPriority(priority, producerIndex, mode);
                 });
 
                 // Valider les ratios
@@ -3664,7 +3666,7 @@ function loadPrioritySettings() {
             data.data.forEach(setting => {
                 const key = `${setting.priority}_${setting.producer}`;
                 // Convertir enabled (boolean) vers le mode approprié
-                priorityModes[key] = setting.enabled ? 'Manuel' : 'Automatique';
+                priorityModes[key] = setting.enabled ? true : false;
             });
 
             // Générer le tableau avec les paramètres chargés
